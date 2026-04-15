@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
 import {
   ACCESS_DENIED_MESSAGE,
   BITRIX_CONTEXT_STATES,
@@ -10,52 +11,37 @@ import NewsSidebar from "./NewsSidebar";
 import NewsToolbar from "./NewsToolbar";
 import NewsDetail from "./NewsDetail";
 
-const MOCK_ITEMS = [
-  {
-    id: 1,
-    status: "PENDIENTE",
-    sourceSite: "Fiscalclinic",
-    sourceUrl: "https://fiscalclinic.es/ejemplo-1",
-    publishedAt: "2026-04-10",
-    scrapedAt: "2026-04-15 09:00",
-    aiGeneratedAt: null,
-    titleOriginal: "C\u00F3mo gestionar correctamente las retenciones fiscales en cl\u00EDnicas",
-    summaryOriginal:
-      "Art\u00EDculo original scrapeado pendiente de revisi\u00F3n editorial.",
-    contentOriginal:
-      "Contenido original de ejemplo. Aqu\u00ED luego ir\u00E1 lo que venga del SPA o de Bitrix.",
-    summaryGenerated: "",
-    contentGenerated: "",
-    reviewReason: "",
-  },
-  {
-    id: 2,
-    status: "GENERADA",
-    sourceSite: "Traspaso Dental",
-    sourceUrl: "https://traspasodental.es/ejemplo-2",
-    publishedAt: "2026-04-12",
-    scrapedAt: "2026-04-15 09:05",
-    aiGeneratedAt: "2026-04-15 09:10",
-    titleOriginal: "Consejos para preparar una cl\u00EDnica antes de su transmisi\u00F3n",
-    summaryOriginal:
-      "Art\u00EDculo original ya transformado en una noticia neutral.",
-    contentOriginal:
-      "Contenido original de ejemplo con enfoque comercial.",
-    summaryGenerated:
-      "Resumen neutral generado por IA pendiente de aprobaci\u00F3n.",
-    contentGenerated:
-      "Contenido ya generado por IA. Despu\u00E9s lo enlazaremos con el backend real.",
-    reviewReason: "",
-  },
-];
+async function fetchJson(url, init) {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || "No se pudo completar la solicitud");
+  }
+
+  return payload;
+}
+
+function sortItems(items = []) {
+  return [...items].sort((left, right) => Number(right.id || 0) - Number(left.id || 0));
+}
 
 export default function NewsApp() {
   const [contextState, setContextState] = useState(BITRIX_CONTEXT_STATES.CHECKING);
   const [bitrixReady, setBitrixReady] = useState(false);
   const [user, setUser] = useState(null);
-  const [items, setItems] = useState(MOCK_ITEMS);
-  const [selectedId, setSelectedId] = useState(MOCK_ITEMS[0]?.id ?? null);
+  const [items, setItems] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +50,8 @@ export default function NewsApp() {
       setContextState(BITRIX_CONTEXT_STATES.CHECKING);
       setBitrixReady(false);
       setUser(null);
+      setItems([]);
+      setSelectedId(null);
       setError("");
 
       try {
@@ -111,56 +99,110 @@ export default function NewsApp() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!bitrixReady) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadNews() {
+      setNewsLoading(true);
+      setError("");
+
+      try {
+        const payload = await fetchJson("/api/news/list");
+        const nextItems = sortItems(Array.isArray(payload.items) ? payload.items : []);
+
+        if (cancelled) return;
+
+        setItems(nextItems);
+        setSelectedId((currentSelectedId) => {
+          if (nextItems.length === 0) {
+            return null;
+          }
+
+          const stillExists = nextItems.some(
+            (item) => Number(item.id) === Number(currentSelectedId)
+          );
+
+          return stillExists ? currentSelectedId : nextItems[0].id;
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setItems([]);
+          setSelectedId(null);
+          setError(err?.message || "No se pudieron cargar las noticias del SPA");
+        }
+      } finally {
+        if (!cancelled) {
+          setNewsLoading(false);
+        }
+      }
+    }
+
+    loadNews();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bitrixReady]);
+
   const selectedItem = useMemo(
-    () => items.find((item) => item.id === selectedId) || null,
+    () => items.find((item) => Number(item.id) === Number(selectedId)) || null,
     [items, selectedId]
   );
 
-  function updateSelectedStatus(status, extra = {}) {
-    if (!selectedItem) return;
+  async function updateSelectedStatus(nextStatus, rejectionReason = "") {
+    if (!selectedItem || actionLoading) return;
 
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === selectedItem.id
-          ? {
-              ...item,
-              status,
-              ...extra,
-            }
-          : item
-      )
-    );
+    setActionLoading(true);
+    setError("");
+
+    try {
+      const payload = await fetchJson("/api/news/update-status", {
+        method: "POST",
+        body: JSON.stringify({
+          id: selectedItem.id,
+          status: nextStatus,
+          rejectionReason,
+        }),
+      });
+
+      const updatedItem = payload.item;
+
+      setItems((prev) =>
+        sortItems(
+          prev.map((item) =>
+            Number(item.id) === Number(updatedItem.id) ? updatedItem : item
+          )
+        )
+      );
+      setSelectedId(updatedItem.id);
+    } catch (err) {
+      setError(err?.message || "No se pudo actualizar la noticia seleccionada");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   function handleGenerate() {
-    if (!selectedItem) return;
-
-    updateSelectedStatus("GENERANDO");
-
-    setTimeout(() => {
-      updateSelectedStatus("GENERADA", {
-        aiGeneratedAt: new Date().toISOString(),
-        summaryGenerated:
-          "Resumen generado de ejemplo. Aqu\u00ED conectaremos luego con el backend y OpenAI.",
-        contentGenerated:
-          "Contenido generado de ejemplo. Esta parte ser\u00E1 sustituida por la respuesta real del backend.",
-      });
-    }, 800);
+    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
   }
 
   function handleRegenerate() {
-    if (!selectedItem) return;
-    handleGenerate();
+    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
   }
 
   function handleApprove() {
-    updateSelectedStatus("APROBADA");
+    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.APROBADA);
   }
 
   function handleReject() {
-    updateSelectedStatus("RECHAZADA", {
-      reviewReason: "Marcada manualmente como rechazada por el editor.",
-    });
+    return updateSelectedStatus(
+      BITRIX_APP_CONFIG.STATUS.RECHAZADA,
+      "Marcada manualmente como rechazada por el editor."
+    );
   }
 
   if (contextState === BITRIX_CONTEXT_STATES.CHECKING) {
@@ -189,17 +231,6 @@ export default function NewsApp() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-        <div className="max-w-lg rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-semibold text-red-700">Error de inicio</h1>
-          <p className="mt-2 text-sm text-slate-600">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!bitrixReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
@@ -217,7 +248,7 @@ export default function NewsApp() {
           <div>
             <h1 className="text-xl font-bold">Noticias IA</h1>
             <p className="text-sm text-slate-500">
-              Panel editorial para revisar noticias scrapeadas y generar versiones limpias.
+              Panel editorial conectado al SPA real de Bitrix24.
             </p>
           </div>
 
@@ -237,7 +268,8 @@ export default function NewsApp() {
           items={items}
           selectedItem={selectedItem}
           onSelect={(item) => setSelectedId(item.id)}
-          loading={false}
+          loading={newsLoading}
+          error={error}
         />
 
         <main className="flex min-h-0 flex-col">
@@ -247,10 +279,16 @@ export default function NewsApp() {
             onRegenerate={handleRegenerate}
             onApprove={handleApprove}
             onReject={handleReject}
+            disabled={actionLoading || newsLoading}
           />
 
           <div className="min-h-0 flex-1">
-            <NewsDetail item={selectedItem} />
+            <NewsDetail
+              item={selectedItem}
+              loading={newsLoading}
+              error={error}
+              isEmpty={!newsLoading && !error && items.length === 0}
+            />
           </div>
         </main>
       </div>

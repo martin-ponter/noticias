@@ -53,6 +53,7 @@ function joinPipeList(values) {
 
 export function fromBitrixItem(item) {
   const fields = item?.fields || {};
+  const syncStatus = normalizeNullableString(fields[F.SYNC_STATUS]);
 
   return {
     id: Number(item?.id || 0),
@@ -72,7 +73,7 @@ export function fromBitrixItem(item) {
     ),
     contentHash: normalizeNullableString(fields[F.CONTENT_HASH]),
 
-    syncStatus: normalizeNullableString(fields[F.SYNC_STATUS]),
+    syncStatus,
     syncError: normalizeNullableString(fields[F.SYNC_ERROR]),
 
     publishedAt: normalizeDate(fields[F.PUBLISHED_AT]),
@@ -82,7 +83,7 @@ export function fromBitrixItem(item) {
     lastSyncAt: normalizeDate(fields[F.LAST_SYNC_AT]),
     uploadedAt: normalizeDate(fields[F.UPLOADED_AT]),
 
-    summary: normalizeNullableString(fields[F.SUMMARY]),
+    summary: normalizeNullableString(fields[F.SUMMARY_ORIGINAL]),
     contentText: normalizeNullableString(fields[F.CONTENT_TEXT]),
     contentHtml: normalizeNullableString(fields[F.CONTENT_HTML]),
 
@@ -92,6 +93,7 @@ export function fromBitrixItem(item) {
     editorNotes: normalizeNullableString(fields[F.EDITOR_NOTES]),
     rejectionReason: normalizeNullableString(fields[F.REJECTION_REASON]),
     readyToUpload: normalizeBoolean(fields[F.READY_TO_UPLOAD]),
+    status: syncStatus,
 
     featuredImageFile:
       fields[F.FEATURED_IMAGE_FILE] !== undefined
@@ -176,7 +178,7 @@ export function toBitrixFields(payload = {}) {
   }
 
   if (payload.summary !== undefined) {
-    fields[F.SUMMARY] = normalizeString(payload.summary);
+    fields[F.SUMMARY_ORIGINAL] = normalizeString(payload.summary);
   }
 
   if (payload.contentText !== undefined) {

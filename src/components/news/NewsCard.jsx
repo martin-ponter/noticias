@@ -1,6 +1,9 @@
 import StatusBadge from "./StatusBadge";
 
 export default function NewsCard({ item, isSelected, onSelect }) {
+  const status = item.syncStatus || item.status || "";
+  const relevantDate = item.publishedAt || item.scrapedAt || item.importedAt || "Sin fecha";
+
   return (
     <button
       type="button"
@@ -13,16 +16,16 @@ export default function NewsCard({ item, isSelected, onSelect }) {
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
-          {item.titleOriginal || "Sin t\u00EDtulo"}
+          {item.titleOriginal || "Sin título"}
         </h3>
-        <StatusBadge status={item.status} />
+        <StatusBadge status={status} />
       </div>
 
       <div className="space-y-2 text-xs text-slate-500">
         <p className="line-clamp-1">{item.sourceSite || "Fuente desconocida"}</p>
-        <p className="line-clamp-1">{item.publishedAt || "Sin fecha"}</p>
+        <p className="line-clamp-1">{relevantDate}</p>
         <p className="line-clamp-2 text-slate-600">
-          {item.summaryOriginal || "Sin resumen"}
+          {item.summary || "Sin resumen"}
         </p>
       </div>
     </button>
