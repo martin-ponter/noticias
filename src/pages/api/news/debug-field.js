@@ -7,14 +7,15 @@ export const prerender = false;
 export const GET = async () => {
   try {
     const fields = await crmItemFields(BITRIX_APP_CONFIG.ENTITY_TYPE_ID);
-    const target = fields?.[BITRIX_APP_CONFIG.FIELDS.SYNC_STATUS] || null;
 
     return json({
       ok: true,
-      fieldKey: BITRIX_APP_CONFIG.FIELDS.SYNC_STATUS,
-      field: target,
+      type: typeof fields,
+      isArray: Array.isArray(fields),
+      keys: fields && typeof fields === "object" ? Object.keys(fields) : [],
+      sample: fields,
     });
   } catch (error) {
-    return serverError(error?.message || "No se pudo leer el campo");
+    return serverError(error?.message || "No se pudo leer crm.item.fields");
   }
 };
