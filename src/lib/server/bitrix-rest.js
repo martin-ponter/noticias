@@ -19,7 +19,7 @@ export async function callBitrix(method, params = {}) {
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Bitrix devolvi\u00F3 ${response.status} ${response.statusText}: ${text}`
+      `Bitrix devolvió ${response.status} ${response.statusText}: ${text}`
     );
   }
 
@@ -36,28 +36,29 @@ export async function callBitrix(method, params = {}) {
 
 export async function crmItemList(entityTypeId, params = {}) {
   return await callBitrix("crm.item.list", {
-    entityTypeId,
+    entityTypeId: Number(entityTypeId),
     ...params,
   });
 }
 
-export async function crmItemGet(entityTypeId, id) {
+export async function crmItemGet(entityTypeId, id, params = {}) {
   return await callBitrix("crm.item.get", {
-    entityTypeId,
+    entityTypeId: Number(entityTypeId),
     id: Number(id),
+    ...params,
   });
 }
 
 export async function crmItemAdd(entityTypeId, fields) {
   return await callBitrix("crm.item.add", {
-    entityTypeId,
+    entityTypeId: Number(entityTypeId),
     fields,
   });
 }
 
 export async function crmItemUpdate(entityTypeId, id, fields) {
   return await callBitrix("crm.item.update", {
-    entityTypeId,
+    entityTypeId: Number(entityTypeId),
     id: Number(id),
     fields,
   });
@@ -65,6 +66,6 @@ export async function crmItemUpdate(entityTypeId, id, fields) {
 
 export async function crmItemFields(entityTypeId) {
   return await callBitrix("crm.item.fields", {
-    entityTypeId,
+    entityTypeId: Number(entityTypeId),
   });
 }

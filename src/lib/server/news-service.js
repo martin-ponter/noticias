@@ -9,6 +9,18 @@ import { fromBitrixItem, toBitrixFields } from "./news-mapper.js";
 
 const ENTITY_TYPE_ID = BITRIX_APP_CONFIG.ENTITY_TYPE_ID;
 
+function buildBitrixSelect() {
+  const fields = BITRIX_APP_CONFIG.FIELDS;
+
+  return [
+    "id",
+    "title",
+    ...Object.values(fields),
+  ];
+}
+
+const BITRIX_SELECT = buildBitrixSelect();
+
 function summarizeItem(item) {
   if (!item || typeof item !== "object") return null;
 
@@ -38,8 +50,9 @@ function debugBitrixResponse(label, result) {
   console.log(`[news-service] ${label}`, {
     resultKeys: Object.keys(result || {}),
     itemCount: items.length,
-    firstItemKeys: Object.keys(items[0] || {}).slice(0, 40),
+    firstItemKeys: Object.keys(items[0] || {}).slice(0, 60),
     firstItemSummary: summarizeItem(items[0]),
+    selectUsed: BITRIX_SELECT,
   });
 }
 
@@ -65,6 +78,7 @@ export async function listNews(params = {}) {
 
   const result = await crmItemList(ENTITY_TYPE_ID, {
     filter,
+    select: BITRIX_SELECT,
     start: Number(start),
     order: {
       id: "desc",
@@ -112,7 +126,9 @@ export async function listNews(params = {}) {
 }
 
 export async function getNewsById(id) {
-  const result = await crmItemGet(ENTITY_TYPE_ID, id);
+  const result = await crmItemGet(ENTITY_TYPE_ID, id, {
+    select: BITRIX_SELECT,
+  });
 
   debugBitrixResponse("crm.item.get", result);
 
