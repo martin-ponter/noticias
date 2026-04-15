@@ -28,13 +28,47 @@ function summarizeItem(item) {
     id: item.id || item.ID || null,
     title: item.title || item.TITLE || null,
     titleOriginal:
-      item.ufCrm25_1776172315 || item.UF_CRM_25_1776172315 || null,
+      item.ufCrm25_1776172315 ||
+      item.UF_CRM_25_1776172315 ||
+      item.title ||
+      item.TITLE ||
+      null,
     sourceSite:
-      item.ufCrm25_1776172329 || item.UF_CRM_25_1776172329 || null,
+      item.ufCrm25_1776172329 ||
+      item.UF_CRM_25_1776172329 ||
+      null,
+    sourceId:
+      item.ufCrm25_1776172343 ||
+      item.UF_CRM_25_1776172343 ||
+      null,
+    sourceUrl:
+      item.ufCrm25_1776172353 ||
+      item.UF_CRM_25_1776172353 ||
+      null,
     summary:
-      item.ufCrm25_1776172633 || item.UF_CRM_25_1776172633 || null,
+      item.ufCrm25_1776172633 ||
+      item.UF_CRM_25_1776172633 ||
+      null,
+    contentText:
+      item.ufCrm25_1776172680 ||
+      item.UF_CRM_25_1776172680 ||
+      null,
+    contentHtml:
+      item.ufCrm25_1776172691 ||
+      item.UF_CRM_25_1776172691 ||
+      null,
     syncStatus:
-      item.ufCrm25_1776172478 || item.UF_CRM_25_1776172478 || null,
+      item.ufCrm25_1776172478 ||
+      item.UF_CRM_25_1776172478 ||
+      null,
+    editorNotes:
+      item.ufCrm25_1776172726 ||
+      item.UF_CRM_25_1776172726 ||
+      null,
+    rejectionReason:
+      item.ufCrm25_1776172742 ||
+      item.UF_CRM_25_1776172742 ||
+      null,
   };
 }
 
@@ -45,12 +79,15 @@ function debugBitrixResponse(label, result) {
       ? result.item
       : result?.item
         ? [result.item]
-        : [];
+        : result && typeof result === "object"
+          ? [result]
+          : [];
 
   console.log(`[news-service] ${label}`, {
+    resultType: typeof result,
     resultKeys: Object.keys(result || {}),
     itemCount: items.length,
-    firstItemKeys: Object.keys(items[0] || {}).slice(0, 60),
+    firstItemKeys: Object.keys(items[0] || {}).slice(0, 80),
     firstItemSummary: summarizeItem(items[0]),
     selectUsed: BITRIX_SELECT,
   });
@@ -88,6 +125,12 @@ export async function listNews(params = {}) {
   debugBitrixResponse("crm.item.list", result);
 
   const items = Array.isArray(result?.items) ? result.items : [];
+
+  console.log(
+    "[news-service] raw first item full",
+    JSON.stringify(items[0] || null, null, 2)
+  );
+
   let mapped = items.map(fromBitrixItem);
 
   console.log(
@@ -95,9 +138,16 @@ export async function listNews(params = {}) {
     mapped.slice(0, 3).map((item) => ({
       id: item.id,
       titleOriginal: item.titleOriginal,
-      summary: item.summary,
       sourceSite: item.sourceSite,
+      sourceId: item.sourceId,
+      sourceUrl: item.sourceUrl,
+      summary: item.summary,
+      contentText: item.contentText,
+      contentHtml: item.contentHtml,
       syncStatus: item.syncStatus,
+      editorNotes: item.editorNotes,
+      rejectionReason: item.rejectionReason,
+      readyToUpload: item.readyToUpload,
     }))
   );
 
@@ -126,21 +176,32 @@ export async function listNews(params = {}) {
 }
 
 export async function getNewsById(id) {
-  const result = await crmItemGet(ENTITY_TYPE_ID, id, {
-    select: BITRIX_SELECT,
-  });
+  const result = await crmItemGet(ENTITY_TYPE_ID, id);
 
   debugBitrixResponse("crm.item.get", result);
 
   const rawItem = result?.item || result;
+
+  console.log(
+    "[news-service] raw single full",
+    JSON.stringify(rawItem || null, null, 2)
+  );
+
   const mapped = fromBitrixItem(rawItem);
 
   console.log("[news-service] mapped single", {
     id: mapped.id,
     titleOriginal: mapped.titleOriginal,
-    summary: mapped.summary,
     sourceSite: mapped.sourceSite,
+    sourceId: mapped.sourceId,
+    sourceUrl: mapped.sourceUrl,
+    summary: mapped.summary,
+    contentText: mapped.contentText,
+    contentHtml: mapped.contentHtml,
     syncStatus: mapped.syncStatus,
+    editorNotes: mapped.editorNotes,
+    rejectionReason: mapped.rejectionReason,
+    readyToUpload: mapped.readyToUpload,
   });
 
   return mapped;
@@ -165,6 +226,7 @@ export async function createNews(payload) {
   console.log("[news-service] crm.item.add result", {
     resultKeys: Object.keys(result || {}),
     itemId: result?.item?.id || result?.id || null,
+    payloadKeys: Object.keys(fields),
   });
 
   return {
@@ -178,6 +240,7 @@ export async function updateNews(id, payload) {
   console.log("[news-service] crm.item.update payload", {
     id: Number(id),
     fieldKeys: Object.keys(fields),
+    fieldsPreview: fields,
   });
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
@@ -196,6 +259,7 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
     syncStatus,
     rejectionReason,
     fieldKeys: Object.keys(fields),
+    fieldsPreview: fields,
   });
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);

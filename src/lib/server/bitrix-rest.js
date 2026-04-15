@@ -36,14 +36,14 @@ export async function callBitrix(method, params = {}) {
 
 export async function crmItemList(entityTypeId, params = {}) {
   return await callBitrix("crm.item.list", {
-    entityTypeId: Number(entityTypeId),
+    entityTypeId,
     ...params,
   });
 }
 
 export async function crmItemGet(entityTypeId, id, params = {}) {
   return await callBitrix("crm.item.get", {
-    entityTypeId: Number(entityTypeId),
+    entityTypeId,
     id: Number(id),
     ...params,
   });
@@ -51,14 +51,14 @@ export async function crmItemGet(entityTypeId, id, params = {}) {
 
 export async function crmItemAdd(entityTypeId, fields) {
   return await callBitrix("crm.item.add", {
-    entityTypeId: Number(entityTypeId),
+    entityTypeId,
     fields,
   });
 }
 
 export async function crmItemUpdate(entityTypeId, id, fields) {
   return await callBitrix("crm.item.update", {
-    entityTypeId: Number(entityTypeId),
+    entityTypeId,
     id: Number(id),
     fields,
   });
@@ -66,6 +66,6 @@ export async function crmItemUpdate(entityTypeId, id, fields) {
 
 export async function crmItemFields(entityTypeId) {
   return await callBitrix("crm.item.fields", {
-    entityTypeId: Number(entityTypeId),
+    entityTypeId,
   });
 }
