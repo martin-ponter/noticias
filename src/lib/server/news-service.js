@@ -112,11 +112,6 @@ export async function listNews(params = {}) {
 
   const items = Array.isArray(result?.items) ? result.items : [];
 
-  console.log(
-    "[news-service] raw first item full",
-    JSON.stringify(items[0] || null, null, 2)
-  );
-
   let mapped = items.map(fromBitrixItem);
 
   console.log(
@@ -167,12 +162,6 @@ export async function getNewsById(id) {
   debugBitrixResponse("crm.item.get", result);
 
   const rawItem = result?.item || result;
-
-  console.log(
-    "[news-service] raw single full",
-    JSON.stringify(rawItem || null, null, 2)
-  );
-
   const mapped = fromBitrixItem(rawItem);
 
   console.log("[news-service] mapped single", {
@@ -221,7 +210,16 @@ export async function createNews(payload) {
 }
 
 export async function updateNews(id, payload) {
-  const fields = toBitrixFields(payload);
+  const now = new Date().toISOString();
+
+  const fields = toBitrixFields({
+    ...payload,
+    lastSyncAt: now,
+    syncStatus:
+      payload.syncStatus ||
+      payload.status ||
+      BITRIX_APP_CONFIG.STATUS.EDITADA,
+  });
 
   console.log("[news-service] crm.item.update payload", {
     id: Number(id),

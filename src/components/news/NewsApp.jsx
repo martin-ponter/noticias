@@ -82,6 +82,7 @@ export default function NewsApp() {
   const [error, setError] = useState("");
   const [newsLoading, setNewsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("");
@@ -255,6 +256,38 @@ export default function NewsApp() {
     }
   }
 
+  async function handleSaveNewsFields(fields) {
+    if (!selectedItem || saveLoading) return;
+
+    setSaveLoading(true);
+    setError("");
+
+    try {
+      const payload = await fetchJson("/api/news/update", {
+        method: "POST",
+        body: JSON.stringify({
+          id: selectedItem.id,
+          fields,
+        }),
+      });
+
+      const updatedItem = payload.item;
+
+      setItems((prev) =>
+        sortItems(
+          prev.map((item) =>
+            Number(item.id) === Number(updatedItem.id) ? updatedItem : item
+          )
+        )
+      );
+      setSelectedId(updatedItem.id);
+    } catch (err) {
+      setError(err?.message || "No se pudieron guardar los cambios");
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
   function handleGenerate() {
     return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
   }
@@ -354,7 +387,7 @@ export default function NewsApp() {
             onRegenerate={handleRegenerate}
             onApprove={handleApprove}
             onReject={handleReject}
-            disabled={actionLoading || newsLoading}
+            disabled={actionLoading || newsLoading || saveLoading}
           />
 
           <div className="min-h-0 flex-1 overflow-hidden">
@@ -363,6 +396,8 @@ export default function NewsApp() {
               loading={newsLoading}
               error={error}
               isEmpty={!newsLoading && !error && filteredItems.length === 0}
+              onSave={handleSaveNewsFields}
+              saving={saveLoading}
             />
           </div>
         </main>

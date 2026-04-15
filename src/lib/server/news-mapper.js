@@ -225,9 +225,10 @@ export function toBitrixFields(payload = {}) {
   const fields = {};
 
   if (payload.titleOriginal !== undefined) {
-    fields[F.TITLE_ORIGINAL] = normalizeString(payload.titleOriginal);
-  }
-
+  const normalizedTitle = normalizeString(payload.titleOriginal);
+  fields[F.TITLE_ORIGINAL] = normalizedTitle;
+  fields[F.BITRIX_TITLE] = normalizedTitle;
+}
   if (payload.sourceSite !== undefined) {
     fields[F.SOURCE_SITE] = normalizeString(payload.sourceSite);
   }
