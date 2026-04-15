@@ -33,6 +33,46 @@ function sortItems(items = []) {
   return [...items].sort((left, right) => Number(right.id || 0) - Number(left.id || 0));
 }
 
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function matchesSearch(item, query) {
+  const q = normalizeText(query);
+
+  if (!q) return true;
+
+  const haystack = [
+    item?.titleOriginal,
+    item?.summary,
+    item?.sourceUrl,
+    item?.sourceSite,
+    item?.sourceSlug,
+    item?.contentText,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(q);
+}
+
+function matchesStatus(item, selectedStatus) {
+  const filterValue = normalizeText(selectedStatus);
+  if (!filterValue) return true;
+
+  const itemStatus = normalizeText(item?.syncStatus || item?.status || "");
+  return itemStatus === filterValue;
+}
+
+function matchesSource(item, selectedSource) {
+  const filterValue = normalizeText(selectedSource);
+  if (!filterValue) return true;
+
+  const itemSource = normalizeText(item?.sourceSite || "");
+  return itemSource === filterValue;
+}
+
 export default function NewsApp() {
   const [contextState, setContextState] = useState(BITRIX_CONTEXT_STATES.CHECKING);
   const [bitrixReady, setBitrixReady] = useState(false);
@@ -42,6 +82,10 @@ export default function NewsApp() {
   const [error, setError] = useState("");
   const [newsLoading, setNewsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState("");
+  const [selectedSourceFilter, setSelectedSourceFilter] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -148,9 +192,34 @@ export default function NewsApp() {
     };
   }, [bitrixReady]);
 
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      return (
+        matchesSearch(item, searchTerm) &&
+        matchesStatus(item, selectedStatusFilter) &&
+        matchesSource(item, selectedSourceFilter)
+      );
+    });
+  }, [items, searchTerm, selectedStatusFilter, selectedSourceFilter]);
+
+  useEffect(() => {
+    if (filteredItems.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+
+    const selectedStillExists = filteredItems.some(
+      (item) => Number(item.id) === Number(selectedId)
+    );
+
+    if (!selectedStillExists) {
+      setSelectedId(filteredItems[0].id);
+    }
+  }, [filteredItems, selectedId]);
+
   const selectedItem = useMemo(
-    () => items.find((item) => Number(item.id) === Number(selectedId)) || null,
-    [items, selectedId]
+    () => filteredItems.find((item) => Number(item.id) === Number(selectedId)) || null,
+    [filteredItems, selectedId]
   );
 
   async function updateSelectedStatus(nextStatus, rejectionReason = "") {
@@ -242,7 +311,7 @@ export default function NewsApp() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -263,16 +332,22 @@ export default function NewsApp() {
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-73px)] grid-cols-1 xl:grid-cols-[360px_1fr]">
+      <div className="grid h-[calc(100vh-73px)] min-h-0 grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)]">
         <NewsSidebar
-          items={items}
+          items={filteredItems}
           selectedItem={selectedItem}
           onSelect={(item) => setSelectedId(item.id)}
           loading={newsLoading}
           error={error}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          selectedStatus={selectedStatusFilter}
+          onSelectedStatusChange={setSelectedStatusFilter}
+          selectedSource={selectedSourceFilter}
+          onSelectedSourceChange={setSelectedSourceFilter}
         />
 
-        <main className="flex min-h-0 flex-col">
+        <main className="flex min-h-0 flex-col overflow-hidden">
           <NewsToolbar
             selectedItem={selectedItem}
             onGenerate={handleGenerate}
@@ -282,12 +357,12 @@ export default function NewsApp() {
             disabled={actionLoading || newsLoading}
           />
 
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <NewsDetail
               item={selectedItem}
               loading={newsLoading}
               error={error}
-              isEmpty={!newsLoading && !error && items.length === 0}
+              isEmpty={!newsLoading && !error && filteredItems.length === 0}
             />
           </div>
         </main>
