@@ -13,7 +13,7 @@ export default function NewsCard({ item, isSelected, onSelect }) {
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
-          {item.titleOriginal || "Sin título"}
+          {item.titleOriginal || "Sin t\u00EDtulo"}
         </h3>
         <StatusBadge status={item.status} />
       </div>

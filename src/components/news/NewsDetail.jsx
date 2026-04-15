@@ -20,7 +20,7 @@ export default function NewsDetail({ item }) {
             Selecciona una noticia
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Aquí verás el original, el contenido generado y el estado editorial.
+            Aqu\u00ED ver\u00E1s el original, el contenido generado y el estado editorial.
           </p>
         </div>
       </div>
@@ -36,7 +36,7 @@ export default function NewsDetail({ item }) {
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900">
-          {item.titleOriginal || "Sin título"}
+          {item.titleOriginal || "Sin t\u00EDtulo"}
         </h1>
 
         <p className="mt-2 text-sm text-slate-500">
@@ -51,7 +51,7 @@ export default function NewsDetail({ item }) {
           </Block>
 
           <Block title="Resumen generado">
-            {item.summaryGenerated || "Todavía no se ha generado contenido"}
+            {item.summaryGenerated || "Todav\u00EDa no se ha generado contenido"}
           </Block>
 
           <Block title="Contenido original">
@@ -62,7 +62,7 @@ export default function NewsDetail({ item }) {
 
           <Block title="Contenido generado">
             <div className="whitespace-pre-wrap">
-              {item.contentGenerated || "Todavía no se ha generado contenido"}
+              {item.contentGenerated || "Todav\u00EDa no se ha generado contenido"}
             </div>
           </Block>
 
@@ -72,13 +72,13 @@ export default function NewsDetail({ item }) {
                 <strong>ID:</strong> {item.id ?? "-"}
               </li>
               <li>
-                <strong>Fecha publicación:</strong> {item.publishedAt || "-"}
+                <strong>Fecha publicaci\u00F3n:</strong> {item.publishedAt || "-"}
               </li>
               <li>
                 <strong>Fecha scraping:</strong> {item.scrapedAt || "-"}
               </li>
               <li>
-                <strong>Fecha generación IA:</strong> {item.aiGeneratedAt || "-"}
+                <strong>Fecha generaci\u00F3n IA:</strong> {item.aiGeneratedAt || "-"}
               </li>
             </ul>
           </Block>

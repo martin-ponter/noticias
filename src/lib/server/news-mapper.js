@@ -1,4 +1,5 @@
 import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
+import { normalizeTextEncoding } from "../utils/text.js";
 
 const F = BITRIX_APP_CONFIG.FIELDS;
 
@@ -18,7 +19,7 @@ function normalizeBoolean(value) {
 
 function normalizeString(value) {
   if (value === undefined || value === null) return "";
-  return String(value).trim();
+  return normalizeTextEncoding(value).trim();
 }
 
 function normalizeNullableString(value) {

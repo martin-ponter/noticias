@@ -19,11 +19,11 @@ const MOCK_ITEMS = [
     publishedAt: "2026-04-10",
     scrapedAt: "2026-04-15 09:00",
     aiGeneratedAt: null,
-    titleOriginal: "CÃ³mo gestionar correctamente las retenciones fiscales en clÃ­nicas",
+    titleOriginal: "C\u00F3mo gestionar correctamente las retenciones fiscales en cl\u00EDnicas",
     summaryOriginal:
-      "ArtÃ­culo original scrapeado pendiente de revisiÃ³n editorial.",
+      "Art\u00EDculo original scrapeado pendiente de revisi\u00F3n editorial.",
     contentOriginal:
-      "Contenido original de ejemplo. AquÃ­ luego irÃ¡ lo que venga del SPA o de Bitrix.",
+      "Contenido original de ejemplo. Aqu\u00ED luego ir\u00E1 lo que venga del SPA o de Bitrix.",
     summaryGenerated: "",
     contentGenerated: "",
     reviewReason: "",
@@ -36,15 +36,15 @@ const MOCK_ITEMS = [
     publishedAt: "2026-04-12",
     scrapedAt: "2026-04-15 09:05",
     aiGeneratedAt: "2026-04-15 09:10",
-    titleOriginal: "Consejos para preparar una clÃ­nica antes de su transmisiÃ³n",
+    titleOriginal: "Consejos para preparar una cl\u00EDnica antes de su transmisi\u00F3n",
     summaryOriginal:
-      "ArtÃ­culo original ya transformado en una noticia neutral.",
+      "Art\u00EDculo original ya transformado en una noticia neutral.",
     contentOriginal:
       "Contenido original de ejemplo con enfoque comercial.",
     summaryGenerated:
-      "Resumen neutral generado por IA pendiente de aprobaciÃ³n.",
+      "Resumen neutral generado por IA pendiente de aprobaci\u00F3n.",
     contentGenerated:
-      "Contenido ya generado por IA. DespuÃ©s lo enlazaremos con el backend real.",
+      "Contenido ya generado por IA. Despu\u00E9s lo enlazaremos con el backend real.",
     reviewReason: "",
   },
 ];
@@ -141,9 +141,9 @@ export default function NewsApp() {
       updateSelectedStatus("GENERADA", {
         aiGeneratedAt: new Date().toISOString(),
         summaryGenerated:
-          "Resumen generado de ejemplo. AquÃ­ conectaremos luego con el backend y OpenAI.",
+          "Resumen generado de ejemplo. Aqu\u00ED conectaremos luego con el backend y OpenAI.",
         contentGenerated:
-          "Contenido generado de ejemplo. Esta parte serÃ¡ sustituida por la respuesta real del backend.",
+          "Contenido generado de ejemplo. Esta parte ser\u00E1 sustituida por la respuesta real del backend.",
       });
     }, 800);
   }
@@ -181,8 +181,8 @@ export default function NewsApp() {
             {ACCESS_DENIED_MESSAGE}
           </h1>
           <p className="mt-3 text-sm text-slate-600">
-            Esta aplicacion solo puede abrirse desde un portal Bitrix24 con un contexto
-            valido de la app.
+            Esta aplicaci\u00F3n solo puede abrirse desde un portal Bitrix24 con un contexto
+            v\u00E1lido de la app.
           </p>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default function NewsApp() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">
-          Iniciando aplicaciÃ³n...
+          Iniciando aplicaci\u00F3n...
         </div>
       </div>
     );

@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request }) => {
     const body = await request.json().catch(() => null);
 
     if (!body || typeof body !== "object") {
-      return badRequest("Body JSON no válido");
+      return badRequest("Body JSON no v\u00E1lido");
     }
 
     const id = Number(body.id || 0);

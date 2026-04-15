@@ -10,7 +10,7 @@ export const GET: APIRoute = async ({ request }) => {
     const id = Number(url.searchParams.get("id") || "0");
 
     if (!id) {
-      return badRequest("Falta el parámetro id");
+      return badRequest("Falta el par\u00E1metro id");
     }
 
     const item = await getNewsById(id);
