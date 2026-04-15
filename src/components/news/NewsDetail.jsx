@@ -124,7 +124,7 @@ export default function NewsDetail({
   }
 
   return (
-    <div className="flex h-full flex-col bg-slate-100">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-slate-100">
       <div className="border-b border-slate-200 bg-white px-6 py-5">
         <div className="mb-3 flex items-center gap-3">
           <StatusBadge status={rawStatus} />
@@ -144,12 +144,12 @@ export default function NewsDetail({
           />
         </div>
 
-        <p className="mt-3 text-sm text-slate-500 break-all">
+        <p className="mt-3 break-all text-sm text-slate-500">
           {item.sourceUrl || "Sin URL"}
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="p-6">
         <div className="grid gap-5 xl:grid-cols-2">
           <Block title="Resumen">
             <textarea
