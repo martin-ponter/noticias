@@ -219,8 +219,8 @@ export default function NewsApp() {
   }, [filteredItems, selectedId]);
 
   const selectedItem = useMemo(
-    () => filteredItems.find((item) => Number(item.id) === Number(selectedId)) || null,
-    [filteredItems, selectedId]
+    () => items.find((item) => Number(item.id) === Number(selectedId)) || null,
+    [items, selectedId]
   );
 
   async function updateSelectedStatus(nextStatus, rejectionReason = "") {
@@ -263,7 +263,7 @@ export default function NewsApp() {
     setError("");
 
     try {
-      const payload = await fetchJson("/api/news/update", {
+      const savedPayload = await fetchJson("/api/news/update", {
         method: "POST",
         body: JSON.stringify({
           id: selectedItem.id,
@@ -271,16 +271,31 @@ export default function NewsApp() {
         }),
       });
 
-      const updatedItem = payload.item;
+      const savedItem = savedPayload.item;
+
+      const statusPayload = await fetchJson("/api/news/update-status", {
+        method: "POST",
+        body: JSON.stringify({
+          id: selectedItem.id,
+          status: BITRIX_APP_CONFIG.STATUS.EDITADA,
+        }),
+      });
+
+      const finalItem = {
+        ...savedItem,
+        ...statusPayload.item,
+        syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
+        status: BITRIX_APP_CONFIG.STATUS.EDITADA,
+      };
 
       setItems((prev) =>
         sortItems(
           prev.map((item) =>
-            Number(item.id) === Number(updatedItem.id) ? updatedItem : item
+            Number(item.id) === Number(finalItem.id) ? finalItem : item
           )
         )
       );
-      setSelectedId(updatedItem.id);
+      setSelectedId(finalItem.id);
     } catch (err) {
       setError(err?.message || "No se pudieron guardar los cambios");
     } finally {

@@ -211,39 +211,18 @@ export async function createNews(payload) {
 export async function updateNews(id, payload) {
   const now = new Date().toISOString();
 
-  const contentFields = toBitrixFields({
-    titleOriginal: payload.titleOriginal,
-    summary: payload.summary,
-    contentText: payload.contentText,
-    contentHtml: payload.contentHtml,
-    editorNotes: payload.editorNotes,
-    rejectionReason: payload.rejectionReason,
-    headings: payload.headings,
-    images: payload.images,
-    readyToUpload: payload.readyToUpload,
-  });
-
-  console.log("[news-service] crm.item.update content payload", {
-    id: Number(id),
-    fieldKeys: Object.keys(contentFields),
-    fieldsPreview: contentFields,
-  });
-
-  await crmItemUpdate(ENTITY_TYPE_ID, id, contentFields);
-
-  const statusFields = toBitrixFields({
-    syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
+  const fields = toBitrixFields({
+    ...payload,
     lastSyncAt: now,
   });
 
-  console.log("[news-service] crm.item.update status payload", {
+  console.log("[news-service] crm.item.update payload", {
     id: Number(id),
-    fieldKeys: Object.keys(statusFields),
-    fieldsPreview: statusFields,
+    fieldKeys: Object.keys(fields),
+    fieldsPreview: fields,
   });
 
-  await crmItemUpdate(ENTITY_TYPE_ID, id, statusFields);
-
+  await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
   return await getNewsById(id);
 }
 
