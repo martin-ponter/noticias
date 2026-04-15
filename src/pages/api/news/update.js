@@ -30,3 +30,4 @@ export const POST = async ({ request }) => {
     return serverError(error?.message || "No se pudo actualizar la noticia");
   }
 };
+
