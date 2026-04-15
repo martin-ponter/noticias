@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ACCESS_DENIED_MESSAGE,
-  getBitrixContext,
+  BITRIX_CONTEXT_STATES,
   initBitrix,
 } from "../../lib/bitrix/bootstrap";
 import { tryFinishInstall } from "../../lib/bitrix/install";
@@ -19,11 +19,11 @@ const MOCK_ITEMS = [
     publishedAt: "2026-04-10",
     scrapedAt: "2026-04-15 09:00",
     aiGeneratedAt: null,
-    titleOriginal: "Cómo gestionar correctamente las retenciones fiscales en clínicas",
+    titleOriginal: "CÃ³mo gestionar correctamente las retenciones fiscales en clÃ­nicas",
     summaryOriginal:
-      "Artículo original scrapeado pendiente de revisión editorial.",
+      "ArtÃ­culo original scrapeado pendiente de revisiÃ³n editorial.",
     contentOriginal:
-      "Contenido original de ejemplo. Aquí luego irá lo que venga del SPA o de Bitrix.",
+      "Contenido original de ejemplo. AquÃ­ luego irÃ¡ lo que venga del SPA o de Bitrix.",
     summaryGenerated: "",
     contentGenerated: "",
     reviewReason: "",
@@ -36,23 +36,22 @@ const MOCK_ITEMS = [
     publishedAt: "2026-04-12",
     scrapedAt: "2026-04-15 09:05",
     aiGeneratedAt: "2026-04-15 09:10",
-    titleOriginal: "Consejos para preparar una clínica antes de su transmisión",
+    titleOriginal: "Consejos para preparar una clÃ­nica antes de su transmisiÃ³n",
     summaryOriginal:
-      "Artículo original ya transformado en una noticia neutral.",
+      "ArtÃ­culo original ya transformado en una noticia neutral.",
     contentOriginal:
       "Contenido original de ejemplo con enfoque comercial.",
     summaryGenerated:
-      "Resumen neutral generado por IA pendiente de aprobación.",
+      "Resumen neutral generado por IA pendiente de aprobaciÃ³n.",
     contentGenerated:
-      "Contenido ya generado por IA. Después lo enlazaremos con el backend real.",
+      "Contenido ya generado por IA. DespuÃ©s lo enlazaremos con el backend real.",
     reviewReason: "",
   },
 ];
 
 export default function NewsApp() {
-  const [bootLoading, setBootLoading] = useState(true);
+  const [contextState, setContextState] = useState(BITRIX_CONTEXT_STATES.CHECKING);
   const [bitrixReady, setBitrixReady] = useState(false);
-  const [accessDenied, setAccessDenied] = useState(false);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState(MOCK_ITEMS);
   const [selectedId, setSelectedId] = useState(MOCK_ITEMS[0]?.id ?? null);
@@ -62,53 +61,45 @@ export default function NewsApp() {
     let cancelled = false;
 
     async function boot() {
-      setBootLoading(true);
+      setContextState(BITRIX_CONTEXT_STATES.CHECKING);
+      setBitrixReady(false);
+      setUser(null);
       setError("");
-      setAccessDenied(false);
 
       try {
-        const context = getBitrixContext();
+        const result = await initBitrix();
 
-        if (!context.hasBitrixHints) {
+        if (result.status === BITRIX_CONTEXT_STATES.OUTSIDE) {
           if (!cancelled) {
-            setBitrixReady(false);
-            setAccessDenied(true);
+            setContextState(BITRIX_CONTEXT_STATES.OUTSIDE);
           }
           return;
         }
 
-        const { bx24 } = await initBitrix();
+        const { bx24 } = result;
         await tryFinishInstall(bx24);
 
         let normalizedUser = null;
 
-        try {
-          const rawUser = await getCurrentBitrixUserRaw();
-          normalizedUser = normalizeBitrixUser(rawUser);
-        } catch (userError) {
-          console.warn("No se pudo obtener el usuario actual de Bitrix24:", userError);
+        if (bx24) {
+          try {
+            const rawUser = await getCurrentBitrixUserRaw();
+            normalizedUser = normalizeBitrixUser(rawUser);
+          } catch (userError) {
+            console.warn("No se pudo obtener el usuario actual de Bitrix24:", userError);
+          }
         }
 
         if (!cancelled) {
           setUser(normalizedUser);
           setBitrixReady(true);
-          setAccessDenied(false);
+          setContextState(BITRIX_CONTEXT_STATES.INSIDE);
         }
       } catch (err) {
-        console.error(err);
         if (!cancelled) {
           setBitrixReady(false);
-
-          if (err?.message === ACCESS_DENIED_MESSAGE) {
-            setAccessDenied(true);
-            return;
-          }
-
+          setContextState(BITRIX_CONTEXT_STATES.INSIDE);
           setError(err?.message || "Error iniciando la app en Bitrix24");
-        }
-      } finally {
-        if (!cancelled) {
-          setBootLoading(false);
         }
       }
     }
@@ -150,9 +141,9 @@ export default function NewsApp() {
       updateSelectedStatus("GENERADA", {
         aiGeneratedAt: new Date().toISOString(),
         summaryGenerated:
-          "Resumen generado de ejemplo. Aquí conectaremos luego con el backend y OpenAI.",
+          "Resumen generado de ejemplo. AquÃ­ conectaremos luego con el backend y OpenAI.",
         contentGenerated:
-          "Contenido generado de ejemplo. Esta parte será sustituida por la respuesta real del backend.",
+          "Contenido generado de ejemplo. Esta parte serÃ¡ sustituida por la respuesta real del backend.",
       });
     }, 800);
   }
@@ -172,11 +163,27 @@ export default function NewsApp() {
     });
   }
 
-  if (bootLoading) {
+  if (contextState === BITRIX_CONTEXT_STATES.CHECKING) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">
-          Iniciando aplicación...
+          Comprobando contexto Bitrix24...
+        </div>
+      </div>
+    );
+  }
+
+  if (contextState === BITRIX_CONTEXT_STATES.OUTSIDE) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+        <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">
+            {ACCESS_DENIED_MESSAGE}
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Esta aplicacion solo puede abrirse desde un portal Bitrix24 con un contexto
+            valido de la app.
+          </p>
         </div>
       </div>
     );
@@ -193,17 +200,11 @@ export default function NewsApp() {
     );
   }
 
-  if (accessDenied || !bitrixReady) {
+  if (!bitrixReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-        <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {ACCESS_DENIED_MESSAGE}
-          </h1>
-          <p className="mt-3 text-sm text-slate-600">
-            Esta aplicacion solo puede abrirse desde un portal Bitrix24 con un contexto
-            valido de la app.
-          </p>
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">
+          Iniciando aplicaciÃ³n...
         </div>
       </div>
     );

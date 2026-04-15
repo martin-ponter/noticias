@@ -1,18 +1,65 @@
 export const ACCESS_DENIED_MESSAGE = "Acceso no permitido fuera de Bitrix24";
 
-const REQUIRED_BITRIX_QUERY_KEYS = ["DOMAIN", "AUTH_ID", "APP_SID"];
-const OPTIONAL_BITRIX_QUERY_KEYS = [
+export const BITRIX_CONTEXT_STATES = {
+  CHECKING: "checking",
+  INSIDE: "inside_bitrix",
+  OUTSIDE: "outside_bitrix",
+};
+
+const BITRIX_QUERY_KEYS = [
+  "DOMAIN",
+  "AUTH_ID",
   "AUTH_EXPIRES",
-  "REFRESH_ID",
+  "APP_SID",
   "PLACEMENT",
   "PLACEMENT_OPTIONS",
   "PROTOCOL",
   "LANG",
   "member_id",
+  "REFRESH_ID",
 ];
 
 function getGlobalWindow() {
   return typeof window === "undefined" ? undefined : window;
+}
+
+function normalizeValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isTruthyInstallFlag(value) {
+  return ["y", "yes", "true", "1"].includes(normalizeValue(value));
+}
+
+function safeGetReferrer() {
+  if (typeof document === "undefined") return "";
+  return document.referrer || "";
+}
+
+function safeIsInsideIframe() {
+  const currentWindow = getGlobalWindow();
+  if (!currentWindow) return false;
+
+  try {
+    return currentWindow.self !== currentWindow.top;
+  } catch {
+    return true;
+  }
+}
+
+function matchesBitrixHost(value) {
+  const normalized = normalizeValue(value);
+  return normalized.includes("bitrix24.") || normalized.includes(".bitrix.");
+}
+
+function hasBitrixReferrer(referrer) {
+  if (!referrer) return false;
+
+  try {
+    return matchesBitrixHost(new URL(referrer).hostname);
+  } catch {
+    return matchesBitrixHost(referrer);
+  }
 }
 
 export function hasBX24() {
@@ -31,71 +78,96 @@ export function getQueryParams() {
   return new URL(currentWindow.location.href).searchParams;
 }
 
-export function getBitrixContext() {
+export function getBitrixContextSnapshot() {
   const params = getQueryParams();
-  const requiredKeys = REQUIRED_BITRIX_QUERY_KEYS.filter((key) => params.has(key));
-  const optionalKeys = OPTIONAL_BITRIX_QUERY_KEYS.filter((key) => params.has(key));
-  const placement = (params.get("PLACEMENT") || "").toLowerCase();
-  const installFlag = (params.get("install") || "").toLowerCase();
+  const matchedQueryKeys = BITRIX_QUERY_KEYS.filter((key) => {
+    const value = params.get(key);
+    return value !== null && String(value).trim() !== "";
+  });
   const bx24Available = hasBX24();
-  const hasRequiredQuery = requiredKeys.length === REQUIRED_BITRIX_QUERY_KEYS.length;
-  const hasBitrixHints = hasRequiredQuery || bx24Available;
+  const insideIframe = safeIsInsideIframe();
+  const referrer = safeGetReferrer();
+  const bitrixReferrer = hasBitrixReferrer(referrer);
+  const domain = params.get("DOMAIN") || "";
+  const placement = normalizeValue(params.get("PLACEMENT"));
+  const installFlag = normalizeValue(params.get("install"));
+  const strongQuerySignal =
+    matchedQueryKeys.includes("DOMAIN") ||
+    matchedQueryKeys.includes("AUTH_ID") ||
+    matchedQueryKeys.includes("APP_SID");
+  const hasQuerySignals = matchedQueryKeys.length > 0;
+  const iframeSignal = insideIframe && (bitrixReferrer || hasQuerySignals);
+  const probableBitrix = bx24Available || strongQuerySignal || iframeSignal;
 
   return {
     params,
     bx24Available,
-    hasRequiredQuery,
-    hasBitrixHints,
-    requiredKeys,
-    optionalKeys,
+    matchedQueryKeys,
+    hasQuerySignals,
+    strongQuerySignal,
+    insideIframe,
+    referrer,
+    bitrixReferrer,
+    iframeSignal,
+    probableBitrix,
+    domain,
     placement,
     installFlag,
   };
 }
 
 export function isInsideBitrix() {
-  return getBitrixContext().hasBitrixHints;
+  return getBitrixContextSnapshot().probableBitrix;
 }
 
 export function isInstallMode() {
-  const { placement, installFlag } = getBitrixContext();
-
-  return (
-    placement.includes("install") ||
-    installFlag === "y" ||
-    installFlag === "yes" ||
-    installFlag === "true" ||
-    installFlag === "1"
-  );
+  const { placement, installFlag } = getBitrixContextSnapshot();
+  return placement.includes("install") || isTruthyInstallFlag(installFlag);
 }
 
-export function waitForBX24({ timeoutMs = 4000, intervalMs = 100 } = {}) {
+export function waitForBitrixContext({
+  timeoutMs = 4500,
+  intervalMs = 125,
+} = {}) {
   return new Promise((resolve) => {
-    const existingBX24 = getBX24();
+    const currentWindow = getGlobalWindow();
+    const initialSnapshot = getBitrixContextSnapshot();
 
-    if (existingBX24) {
-      resolve(existingBX24);
+    if (!currentWindow) {
+      resolve({
+        state: BITRIX_CONTEXT_STATES.OUTSIDE,
+        snapshot: initialSnapshot,
+      });
       return;
     }
 
-    const currentWindow = getGlobalWindow();
-    if (!currentWindow) {
-      resolve(null);
+    if (initialSnapshot.probableBitrix) {
+      resolve({
+        state: BITRIX_CONTEXT_STATES.INSIDE,
+        snapshot: initialSnapshot,
+      });
       return;
     }
 
     const startedAt = Date.now();
     const timer = currentWindow.setInterval(() => {
-      const bx24 = getBX24();
-      if (bx24) {
+      const snapshot = getBitrixContextSnapshot();
+
+      if (snapshot.probableBitrix) {
         currentWindow.clearInterval(timer);
-        resolve(bx24);
+        resolve({
+          state: BITRIX_CONTEXT_STATES.INSIDE,
+          snapshot,
+        });
         return;
       }
 
       if (Date.now() - startedAt >= timeoutMs) {
         currentWindow.clearInterval(timer);
-        resolve(null);
+        resolve({
+          state: BITRIX_CONTEXT_STATES.OUTSIDE,
+          snapshot,
+        });
       }
     }, intervalMs);
   });
@@ -104,7 +176,7 @@ export function waitForBX24({ timeoutMs = 4000, intervalMs = 100 } = {}) {
 function initBX24Instance(bx24, initTimeoutMs) {
   return new Promise((resolve, reject) => {
     if (!bx24) {
-      reject(new Error(ACCESS_DENIED_MESSAGE));
+      reject(new Error("BX24 no esta disponible"));
       return;
     }
 
@@ -146,31 +218,38 @@ function initBX24Instance(bx24, initTimeoutMs) {
 }
 
 export async function initBitrix({
-  waitTimeoutMs = 4000,
-  waitIntervalMs = 100,
+  contextTimeoutMs = 4500,
+  contextIntervalMs = 125,
   initTimeoutMs = 4000,
 } = {}) {
-  const context = getBitrixContext();
+  const contextCheck = await waitForBitrixContext({
+    timeoutMs: contextTimeoutMs,
+    intervalMs: contextIntervalMs,
+  });
 
-  if (!context.hasBitrixHints) {
-    throw new Error(ACCESS_DENIED_MESSAGE);
+  if (contextCheck.state === BITRIX_CONTEXT_STATES.OUTSIDE) {
+    return {
+      status: BITRIX_CONTEXT_STATES.OUTSIDE,
+      bx24: null,
+      context: contextCheck.snapshot,
+    };
   }
 
-  const bx24 =
-    getBX24() ||
-    (await waitForBX24({
-      timeoutMs: waitTimeoutMs,
-      intervalMs: waitIntervalMs,
-    }));
+  const bx24 = getBX24();
 
   if (!bx24) {
-    throw new Error(ACCESS_DENIED_MESSAGE);
+    return {
+      status: BITRIX_CONTEXT_STATES.INSIDE,
+      bx24: null,
+      context: contextCheck.snapshot,
+    };
   }
 
   await initBX24Instance(bx24, initTimeoutMs);
 
   return {
+    status: BITRIX_CONTEXT_STATES.INSIDE,
     bx24,
-    context: getBitrixContext(),
+    context: getBitrixContextSnapshot(),
   };
 }
