@@ -1,4 +1,4 @@
-import StatusBadge from "./StatusBadge";
+import StatusBadge, { getDisplayStatus } from "./StatusBadge";
 
 function Block({ title, children }) {
   return (
@@ -20,6 +20,10 @@ function EmptyState({ title, message }) {
       </div>
     </div>
   );
+}
+
+function pickRelevantDate(item) {
+  return item.publishedAt || item.scrapedAt || item.importedAt || item.lastSyncAt || "-";
 }
 
 export default function NewsDetail({ item, loading, error, isEmpty }) {
@@ -54,20 +58,20 @@ export default function NewsDetail({ item, loading, error, isEmpty }) {
     );
   }
 
-  const status = item.syncStatus || item.status || "";
-  const relevantDate =
-    item.publishedAt || item.scrapedAt || item.importedAt || item.lastSyncAt || "-";
+  const rawStatus = item.syncStatus || item.status || "";
+  const displayStatus = getDisplayStatus(rawStatus);
+  const relevantDate = pickRelevantDate(item);
 
   return (
     <div className="flex h-full flex-col bg-slate-100">
       <div className="border-b border-slate-200 bg-white px-6 py-5">
         <div className="mb-3 flex items-center gap-3">
-          <StatusBadge status={status} />
+          <StatusBadge status={rawStatus} />
           <span className="text-xs text-slate-500">{item.sourceSite || "Sin fuente"}</span>
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900">
-          {item.titleOriginal || "Sin t\u00EDtulo"}
+          {item.titleOriginal || "Sin título"}
         </h1>
 
         <p className="mt-2 text-sm text-slate-500">
@@ -84,13 +88,13 @@ export default function NewsDetail({ item, loading, error, isEmpty }) {
           <Block title="Estado editorial">
             <div className="space-y-2">
               <div>
-                <strong>Estado:</strong> {status || "Sin estado"}
+                <strong>Estado:</strong> {displayStatus.label}
               </div>
               <div>
-                <strong>Lista para subir:</strong> {item.readyToUpload ? "S\u00ED" : "No"}
+                <strong>Lista para subir:</strong> {item.readyToUpload ? "Sí" : "No"}
               </div>
               <div>
-                <strong>\u00DAltima fecha relevante:</strong> {relevantDate}
+                <strong>Última fecha relevante:</strong> {relevantDate}
               </div>
             </div>
           </Block>
@@ -115,19 +119,19 @@ export default function NewsDetail({ item, loading, error, isEmpty }) {
                 <strong>ID:</strong> {item.id ?? "-"}
               </li>
               <li>
-                <strong>Fecha publicaci\u00F3n:</strong> {item.publishedAt || "-"}
+                <strong>Fecha publicación:</strong> {item.publishedAt || "-"}
               </li>
               <li>
                 <strong>Fecha scraping:</strong> {item.scrapedAt || "-"}
               </li>
               <li>
-                <strong>Fecha importaci\u00F3n:</strong> {item.importedAt || "-"}
+                <strong>Fecha importación:</strong> {item.importedAt || "-"}
               </li>
               <li>
-                <strong>\u00DAltima sincronizaci\u00F3n:</strong> {item.lastSyncAt || "-"}
+                <strong>Última sincronización:</strong> {item.lastSyncAt || "-"}
               </li>
               <li>
-                <strong>Error de sincronizaci\u00F3n:</strong> {item.syncError || "-"}
+                <strong>Error de sincronización:</strong> {item.syncError || "-"}
               </li>
             </ul>
           </Block>

@@ -223,8 +223,8 @@ export default function NewsApp() {
             {ACCESS_DENIED_MESSAGE}
           </h1>
           <p className="mt-3 text-sm text-slate-600">
-            Esta aplicaci\u00F3n solo puede abrirse desde un portal Bitrix24 con un contexto
-            v\u00E1lido de la app.
+            Esta aplicación solo puede abrirse desde un portal Bitrix24 con un contexto
+            válido de la app.
           </p>
         </div>
       </div>
@@ -235,7 +235,7 @@ export default function NewsApp() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">
-          Iniciando aplicaci\u00F3n...
+          Iniciando aplicación...
         </div>
       </div>
     );

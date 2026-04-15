@@ -1,7 +1,8 @@
-import StatusBadge from "./StatusBadge";
+import StatusBadge, { getDisplayStatus } from "./StatusBadge";
 
 export default function NewsCard({ item, isSelected, onSelect }) {
-  const status = item.syncStatus || item.status || "";
+  const rawStatus = item.syncStatus || item.status || "";
+  const displayStatus = getDisplayStatus(rawStatus);
   const relevantDate = item.publishedAt || item.scrapedAt || item.importedAt || "Sin fecha";
 
   return (
@@ -18,7 +19,7 @@ export default function NewsCard({ item, isSelected, onSelect }) {
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
           {item.titleOriginal || "Sin título"}
         </h3>
-        <StatusBadge status={status} />
+        <StatusBadge status={rawStatus} />
       </div>
 
       <div className="space-y-2 text-xs text-slate-500">
