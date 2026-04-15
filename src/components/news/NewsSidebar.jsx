@@ -1,19 +1,34 @@
 import { useMemo } from "react";
 import NewsCard from "./NewsCard";
 
+function normalizeStatusLabel(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+
+  if (normalized === "ok") {
+    return "Pendiente";
+  }
+
+  if (!normalized) {
+    return "Sin estado";
+  }
+
+  return String(status).trim();
+}
+
 function buildStatusOptions(items = []) {
   const values = new Set();
 
   for (const item of items) {
-    const status = String(item?.syncStatus || item?.status || "")
-      .trim();
+    const status = String(item?.syncStatus || item?.status || "").trim();
 
     if (status) {
       values.add(status);
     }
   }
 
-  return Array.from(values).sort((a, b) => a.localeCompare(b, "es"));
+  return Array.from(values).sort((a, b) =>
+    normalizeStatusLabel(a).localeCompare(normalizeStatusLabel(b), "es")
+  );
 }
 
 function buildSourceOptions(items = []) {
@@ -85,7 +100,7 @@ export default function NewsSidebar({
                   <option value="">Todos</option>
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {normalizeStatusLabel(status)}
                     </option>
                   ))}
                 </select>
@@ -119,7 +134,7 @@ export default function NewsSidebar({
                 {loading ? "Cargando..." : `${items.length} noticia${items.length === 1 ? "" : "s"}`}
               </span>
 
-              {(searchTerm || selectedStatus || selectedSource) ? (
+              {searchTerm || selectedStatus || selectedSource ? (
                 <button
                   type="button"
                   onClick={() => {
