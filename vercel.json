@@ -1,8 +1,0 @@
-{
-    "rewrites": [
-        {
-            "source": "/bitrix-entry",
-            "destination": "/pages/bitrix-entry"
-        }
-    ]
-}
