@@ -8,7 +8,6 @@ const STATUS_STYLES = {
   rechazada: "bg-rose-100 text-rose-800 border-rose-200",
   "error ia": "bg-red-100 text-red-800 border-red-200",
   subida: "bg-cyan-100 text-cyan-800 border-cyan-200",
-  ok: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 export function getDisplayStatus(status) {
@@ -16,17 +15,22 @@ export function getDisplayStatus(status) {
   const normalized = raw.toLowerCase();
 
   if (!raw || normalized === "ok") {
-    return { value: "Pendiente", label: "Pendiente" };
+    return {
+      key: "pendiente",
+      label: "Pendiente",
+    };
   }
 
-  return { value: raw, label: raw };
+  return {
+    key: normalized,
+    label: raw,
+  };
 }
 
 export default function StatusBadge({ status }) {
   const display = getDisplayStatus(status);
-  const normalizedStatus = String(display.value).trim().toLowerCase();
   const className =
-    STATUS_STYLES[normalizedStatus] || "bg-slate-100 text-slate-700 border-slate-200";
+    STATUS_STYLES[display.key] || "bg-slate-100 text-slate-700 border-slate-200";
 
   return (
     <span

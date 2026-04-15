@@ -4,18 +4,22 @@ import { normalizeTextEncoding } from "../utils/text.js";
 const F = BITRIX_APP_CONFIG.FIELDS;
 
 function normalizeBoolean(value) {
-  return (
+  if (
     value === true ||
     value === "Y" ||
     value === "y" ||
     value === "1" ||
     value === 1
-  );
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function normalizeString(value) {
   if (value === undefined || value === null) return "";
-  return normalizeTextEncoding(String(value)).trim();
+  return normalizeTextEncoding(value).trim();
 }
 
 function normalizeNullableString(value) {
@@ -53,7 +57,6 @@ function splitPipeList(value) {
 
 function joinPipeList(values) {
   if (!Array.isArray(values)) return "";
-
   return values
     .map((value) => normalizeString(value))
     .filter(Boolean)
@@ -135,10 +138,7 @@ function debugMappedItem(rawItem, mappedItem) {
   ];
 
   const fieldPresence = Object.fromEntries(
-    keysToCheck.map((fieldKey) => [
-      fieldKey,
-      readFieldValue(rawItem, fieldKey) !== undefined,
-    ])
+    keysToCheck.map((fieldKey) => [fieldKey, readFieldValue(rawItem, fieldKey) !== undefined])
   );
 
   console.log("[news-mapper] bitrix item", {
@@ -158,7 +158,6 @@ function debugMappedItem(rawItem, mappedItem) {
 
 export function fromBitrixItem(item) {
   const syncStatus = normalizeNullableString(readFieldValue(item, F.SYNC_STATUS));
-
   const titleOriginal =
     normalizeNullableString(readFieldValue(item, F.TITLE_ORIGINAL)) ||
     normalizeNullableString(readFieldValue(item, F.BITRIX_TITLE)) ||
@@ -178,9 +177,7 @@ export function fromBitrixItem(item) {
     sourceUrl: normalizeNullableString(readFieldValue(item, F.SOURCE_URL)),
     sourceSlug: normalizeNullableString(readFieldValue(item, F.SOURCE_SLUG)),
 
-    featuredImageUrl: normalizeNullableString(
-      readFieldValue(item, F.FEATURED_IMAGE_URL)
-    ),
+    featuredImageUrl: normalizeNullableString(readFieldValue(item, F.FEATURED_IMAGE_URL)),
     featuredImageLocalPath: normalizeNullableString(
       readFieldValue(item, F.FEATURED_IMAGE_LOCAL_PATH)
     ),
@@ -207,9 +204,7 @@ export function fromBitrixItem(item) {
     images: splitPipeList(readFieldValue(item, F.IMAGES)),
 
     editorNotes: normalizeNullableString(readFieldValue(item, F.EDITOR_NOTES)),
-    rejectionReason: normalizeNullableString(
-      readFieldValue(item, F.REJECTION_REASON)
-    ),
+    rejectionReason: normalizeNullableString(readFieldValue(item, F.REJECTION_REASON)),
     readyToUpload: normalizeBoolean(readFieldValue(item, F.READY_TO_UPLOAD)),
     status: syncStatus,
 
@@ -228,7 +223,9 @@ export function toBitrixFields(payload = {}) {
   const fields = {};
 
   if (payload.titleOriginal !== undefined) {
-    fields[F.TITLE_ORIGINAL] = normalizeString(payload.titleOriginal);
+    const normalizedTitle = normalizeString(payload.titleOriginal);
+    fields[F.TITLE_ORIGINAL] = normalizedTitle;
+    fields[F.BITRIX_TITLE] = normalizedTitle;
   }
 
   if (payload.sourceSite !== undefined) {
@@ -342,10 +339,9 @@ export function toBitrixFields(payload = {}) {
   console.log("[news-mapper] toBitrixFields", {
     keys: Object.keys(fields),
     titleOriginal: fields[F.TITLE_ORIGINAL] || "",
+    bitrixTitle: fields[F.BITRIX_TITLE] || "",
     summary: fields[F.SUMMARY] || "",
     syncStatus: fields[F.SYNC_STATUS] || "",
-    modifiedAt: fields[F.MODIFIED_AT] || "",
-    lastSyncAt: fields[F.LAST_SYNC_AT] || "",
   });
 
   return fields;

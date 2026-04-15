@@ -111,12 +111,6 @@ export async function listNews(params = {}) {
   debugBitrixResponse("crm.item.list", result);
 
   const items = Array.isArray(result?.items) ? result.items : [];
-
-  console.log(
-    "[news-service] raw first item full",
-    JSON.stringify(items[0] || null, null, 2)
-  );
-
   let mapped = items.map(fromBitrixItem);
 
   console.log(
@@ -134,8 +128,6 @@ export async function listNews(params = {}) {
       editorNotes: item.editorNotes,
       rejectionReason: item.rejectionReason,
       readyToUpload: item.readyToUpload,
-      modifiedAt: item.modifiedAt,
-      lastSyncAt: item.lastSyncAt,
     }))
   );
 
@@ -169,12 +161,6 @@ export async function getNewsById(id) {
   debugBitrixResponse("crm.item.get", result);
 
   const rawItem = result?.item || result;
-
-  console.log(
-    "[news-service] raw single full",
-    JSON.stringify(rawItem || null, null, 2)
-  );
-
   const mapped = fromBitrixItem(rawItem);
 
   console.log("[news-service] mapped single", {
@@ -190,8 +176,6 @@ export async function getNewsById(id) {
     editorNotes: mapped.editorNotes,
     rejectionReason: mapped.rejectionReason,
     readyToUpload: mapped.readyToUpload,
-    modifiedAt: mapped.modifiedAt,
-    lastSyncAt: mapped.lastSyncAt,
   });
 
   return mapped;
@@ -224,20 +208,13 @@ export async function createNews(payload) {
   };
 }
 
-export async function updateNews(id, payload = {}) {
+export async function updateNews(id, payload) {
   const now = new Date().toISOString();
-
-  const effectiveStatus =
-    payload.syncStatus ||
-    payload.status ||
-    BITRIX_APP_CONFIG.STATUS.EDITADA ||
-    "Editada";
 
   const fields = toBitrixFields({
     ...payload,
-    syncStatus: effectiveStatus,
-    modifiedAt: payload.modifiedAt || now,
-    lastSyncAt: payload.lastSyncAt || now,
+    syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
+    lastSyncAt: now,
   });
 
   console.log("[news-service] crm.item.update payload", {
