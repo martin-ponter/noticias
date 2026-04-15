@@ -19,7 +19,7 @@ export async function callBitrix(method, params = {}) {
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Bitrix devolvió ${response.status} ${response.statusText}: ${text}`
+      `Bitrix devolvi\u00F3 ${response.status} ${response.statusText}: ${text}`
     );
   }
 

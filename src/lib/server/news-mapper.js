@@ -37,6 +37,18 @@ function splitPipeList(value) {
 
   if (!normalized) return [];
 
+  if (
+    (normalized.startsWith("[") && normalized.endsWith("]")) ||
+    (normalized.startsWith("{") && normalized.endsWith("}"))
+  ) {
+    try {
+      const parsed = JSON.parse(normalized);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [normalized];
+    }
+  }
+
   return normalized
     .split("|")
     .map((part) => part.trim())
@@ -51,55 +63,153 @@ function joinPipeList(values) {
     .join(" | ");
 }
 
+function getItemSources(item) {
+  const sources = [];
+
+  if (item && typeof item === "object") {
+    sources.push(item);
+
+    if (item.item && typeof item.item === "object") {
+      sources.push(item.item);
+    }
+
+    if (item.fields && typeof item.fields === "object") {
+      sources.push(item.fields);
+    }
+
+    if (item.item?.fields && typeof item.item.fields === "object") {
+      sources.push(item.item.fields);
+    }
+  }
+
+  return sources;
+}
+
+function getFieldCandidates(fieldName) {
+  const normalized = normalizeString(fieldName);
+  if (!normalized) return [];
+
+  const camelCase = normalized
+    .toLowerCase()
+    .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+  const lowerCase = normalized.toLowerCase();
+  const upperCase = normalized.toUpperCase();
+  const firstLower = normalized.charAt(0).toLowerCase() + normalized.slice(1);
+
+  return [...new Set([normalized, camelCase, lowerCase, upperCase, firstLower])];
+}
+
+function readFieldValue(item, fieldName) {
+  const sources = getItemSources(item);
+  const candidates = getFieldCandidates(fieldName);
+
+  for (const source of sources) {
+    for (const key of candidates) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const value = source[key];
+        if (value !== undefined) {
+          return value;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function debugMappedItem(rawItem, mappedItem) {
+  const keysToCheck = [
+    F.BITRIX_TITLE,
+    F.TITLE_ORIGINAL,
+    F.SOURCE_SITE,
+    F.SOURCE_URL,
+    F.SUMMARY,
+    F.CONTENT_TEXT,
+    F.SYNC_STATUS,
+    F.EDITOR_NOTES,
+    F.REJECTION_REASON,
+  ];
+
+  const fieldPresence = Object.fromEntries(
+    keysToCheck.map((fieldKey) => [fieldKey, readFieldValue(rawItem, fieldKey) !== undefined])
+  );
+
+  console.log("[news-mapper] bitrix item", {
+    topLevelKeys: Object.keys(rawItem || {}).slice(0, 30),
+    hasFieldsObject: Boolean(rawItem?.fields),
+    hasNestedItem: Boolean(rawItem?.item),
+    fieldPresence,
+    mapped: {
+      id: mappedItem.id,
+      titleOriginal: mappedItem.titleOriginal,
+      sourceSite: mappedItem.sourceSite,
+      summary: mappedItem.summary,
+      syncStatus: mappedItem.syncStatus,
+    },
+  });
+}
+
 export function fromBitrixItem(item) {
-  const fields = item?.fields || {};
-  const syncStatus = normalizeNullableString(fields[F.SYNC_STATUS]);
+  const syncStatus = normalizeNullableString(readFieldValue(item, F.SYNC_STATUS));
+  const titleOriginal =
+    normalizeNullableString(readFieldValue(item, F.TITLE_ORIGINAL)) ||
+    normalizeNullableString(readFieldValue(item, F.BITRIX_TITLE)) ||
+    "";
 
-  return {
-    id: Number(item?.id || 0),
+  const mapped = {
+    id: Number(
+      readFieldValue(item, "id") ||
+        readFieldValue(item, "ID") ||
+        readFieldValue(item, "Id") ||
+        0
+    ),
 
-    titleOriginal: normalizeString(fields[F.TITLE_ORIGINAL]),
-    sourceSite: normalizeNullableString(fields[F.SOURCE_SITE]),
-    sourceId: normalizeNullableString(fields[F.SOURCE_ID]),
-    sourceUrl: normalizeNullableString(fields[F.SOURCE_URL]),
-    sourceSlug: normalizeNullableString(fields[F.SOURCE_SLUG]),
+    titleOriginal,
+    sourceSite: normalizeNullableString(readFieldValue(item, F.SOURCE_SITE)),
+    sourceId: normalizeNullableString(readFieldValue(item, F.SOURCE_ID)),
+    sourceUrl: normalizeNullableString(readFieldValue(item, F.SOURCE_URL)),
+    sourceSlug: normalizeNullableString(readFieldValue(item, F.SOURCE_SLUG)),
 
-    featuredImageUrl: normalizeNullableString(fields[F.FEATURED_IMAGE_URL]),
+    featuredImageUrl: normalizeNullableString(readFieldValue(item, F.FEATURED_IMAGE_URL)),
     featuredImageLocalPath: normalizeNullableString(
-      fields[F.FEATURED_IMAGE_LOCAL_PATH]
+      readFieldValue(item, F.FEATURED_IMAGE_LOCAL_PATH)
     ),
     finalPublicationUrl: normalizeNullableString(
-      fields[F.FINAL_PUBLICATION_URL]
+      readFieldValue(item, F.FINAL_PUBLICATION_URL)
     ),
-    contentHash: normalizeNullableString(fields[F.CONTENT_HASH]),
+    contentHash: normalizeNullableString(readFieldValue(item, F.CONTENT_HASH)),
 
     syncStatus,
-    syncError: normalizeNullableString(fields[F.SYNC_ERROR]),
+    syncError: normalizeNullableString(readFieldValue(item, F.SYNC_ERROR)),
 
-    publishedAt: normalizeDate(fields[F.PUBLISHED_AT]),
-    modifiedAt: normalizeDate(fields[F.MODIFIED_AT]),
-    scrapedAt: normalizeDate(fields[F.SCRAPED_AT]),
-    importedAt: normalizeDate(fields[F.IMPORTED_AT]),
-    lastSyncAt: normalizeDate(fields[F.LAST_SYNC_AT]),
-    uploadedAt: normalizeDate(fields[F.UPLOADED_AT]),
+    publishedAt: normalizeDate(readFieldValue(item, F.PUBLISHED_AT)),
+    modifiedAt: normalizeDate(readFieldValue(item, F.MODIFIED_AT)),
+    scrapedAt: normalizeDate(readFieldValue(item, F.SCRAPED_AT)),
+    importedAt: normalizeDate(readFieldValue(item, F.IMPORTED_AT)),
+    lastSyncAt: normalizeDate(readFieldValue(item, F.LAST_SYNC_AT)),
+    uploadedAt: normalizeDate(readFieldValue(item, F.UPLOADED_AT)),
 
-    summary: normalizeNullableString(fields[F.SUMMARY_ORIGINAL]),
-    contentText: normalizeNullableString(fields[F.CONTENT_TEXT]),
-    contentHtml: normalizeNullableString(fields[F.CONTENT_HTML]),
+    summary: normalizeNullableString(readFieldValue(item, F.SUMMARY)),
+    contentText: normalizeNullableString(readFieldValue(item, F.CONTENT_TEXT)),
+    contentHtml: normalizeNullableString(readFieldValue(item, F.CONTENT_HTML)),
 
-    headings: splitPipeList(fields[F.HEADINGS]),
-    images: splitPipeList(fields[F.IMAGES]),
+    headings: splitPipeList(readFieldValue(item, F.HEADINGS)),
+    images: splitPipeList(readFieldValue(item, F.IMAGES)),
 
-    editorNotes: normalizeNullableString(fields[F.EDITOR_NOTES]),
-    rejectionReason: normalizeNullableString(fields[F.REJECTION_REASON]),
-    readyToUpload: normalizeBoolean(fields[F.READY_TO_UPLOAD]),
+    editorNotes: normalizeNullableString(readFieldValue(item, F.EDITOR_NOTES)),
+    rejectionReason: normalizeNullableString(readFieldValue(item, F.REJECTION_REASON)),
+    readyToUpload: normalizeBoolean(readFieldValue(item, F.READY_TO_UPLOAD)),
     status: syncStatus,
 
     featuredImageFile:
-      fields[F.FEATURED_IMAGE_FILE] !== undefined
-        ? fields[F.FEATURED_IMAGE_FILE]
+      readFieldValue(item, F.FEATURED_IMAGE_FILE) !== undefined
+        ? readFieldValue(item, F.FEATURED_IMAGE_FILE)
         : null,
   };
+
+  debugMappedItem(item, mapped);
+
+  return mapped;
 }
 
 export function toBitrixFields(payload = {}) {
@@ -178,7 +288,7 @@ export function toBitrixFields(payload = {}) {
   }
 
   if (payload.summary !== undefined) {
-    fields[F.SUMMARY_ORIGINAL] = normalizeString(payload.summary);
+    fields[F.SUMMARY] = normalizeString(payload.summary);
   }
 
   if (payload.contentText !== undefined) {
@@ -216,6 +326,13 @@ export function toBitrixFields(payload = {}) {
   if (payload.featuredImageFile !== undefined) {
     fields[F.FEATURED_IMAGE_FILE] = payload.featuredImageFile;
   }
+
+  console.log("[news-mapper] toBitrixFields", {
+    keys: Object.keys(fields),
+    titleOriginal: fields[F.TITLE_ORIGINAL] || "",
+    summary: fields[F.SUMMARY] || "",
+    syncStatus: fields[F.SYNC_STATUS] || "",
+  });
 
   return fields;
 }
