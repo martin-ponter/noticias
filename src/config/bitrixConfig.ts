@@ -1,38 +1,51 @@
-import type { APIRoute } from "astro";
-import { updateNewsStatus } from "../lib/server/news-service.js";
-import { badRequest, json, serverError } from "../lib/server/response.js";
+export const BITRIX_APP_CONFIG = {
+  APP_NAME: "App local noticias",
+  ENTITY_TYPE_ID: 1070,
 
-export const prerender = false;
+  STATUS: {
+    PENDIENTE: "Pendiente",
+    GENERANDO: "Generando",
+    GENERADA: "Generada",
+    REVISAR: "Revisar",
+    EDITADA: "Editada",
+    APROBADA: "Aprobada",
+    RECHAZADA: "Rechazada",
+    ERROR_IA: "Error IA",
+    SUBIDA: "Subida",
+  },
 
-export const POST: APIRoute = async ({ request }) => {
-  try {
-    const body = await request.json().catch(() => null);
+  FIELDS: {
+    BITRIX_TITLE: "title",
 
-    if (!body || typeof body !== "object") {
-      return badRequest("Body JSON no v\u00E1lido");
-    }
+    TITLE_ORIGINAL: "UF_CRM_25_1776172315",
+    SOURCE_SITE: "UF_CRM_25_1776172329",
+    SOURCE_ID: "UF_CRM_25_1776172343",
+    SOURCE_URL: "UF_CRM_25_1776172353",
+    SOURCE_SLUG: "UF_CRM_25_1776172366",
 
-    const id = Number(body.id || 0);
-    const status = String(body.status || body.syncStatus || "").trim();
-    const rejectionReason = String(
-      body.rejectionReason || body.reviewReason || ""
-    ).trim();
+    FEATURED_IMAGE_URL: "UF_CRM_25_1776172413",
+    FEATURED_IMAGE_LOCAL_PATH: "UF_CRM_25_1776172428",
+    FINAL_PUBLICATION_URL: "UF_CRM_25_1776172447",
+    CONTENT_HASH: "UF_CRM_25_1776172463",
+    SYNC_STATUS: "UF_CRM_25_1776172478",
+    SYNC_ERROR: "UF_CRM_25_1776172491",
 
-    if (!id) {
-      return badRequest("id es obligatorio");
-    }
+    PUBLISHED_AT: "UF_CRM_25_1776172502",
+    MODIFIED_AT: "UF_CRM_25_1776172524",
+    SCRAPED_AT: "UF_CRM_25_1776172541",
+    IMPORTED_AT: "UF_CRM_25_1776172560",
+    LAST_SYNC_AT: "UF_CRM_25_1776172599",
+    UPLOADED_AT: "UF_CRM_25_1776172614",
 
-    if (!status) {
-      return badRequest("status es obligatorio");
-    }
+    SUMMARY: "UF_CRM_25_1776172633",
+    CONTENT_TEXT: "UF_CRM_25_1776172680",
+    CONTENT_HTML: "UF_CRM_25_1776172691",
+    HEADINGS: "UF_CRM_25_1776172701",
+    IMAGES: "UF_CRM_25_1776172714",
 
-    const item = await updateNewsStatus(id, status, rejectionReason);
-
-    return json({
-      ok: true,
-      item,
-    });
-  } catch (error: any) {
-    return serverError(error?.message || "No se pudo actualizar el estado");
-  }
+    EDITOR_NOTES: "UF_CRM_25_1776172726",
+    REJECTION_REASON: "UF_CRM_25_1776172742",
+    READY_TO_UPLOAD: "UF_CRM_25_1776172770",
+    FEATURED_IMAGE_FILE: "UF_CRM_25_1776172784",
+  },
 };

@@ -1,15 +1,14 @@
-import type { APIRoute } from "astro";
 import { updateNews } from "../../../lib/server/news-service.js";
 import { badRequest, json, serverError } from "../../../lib/server/response.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST = async ({ request }) => {
   try {
     const body = await request.json().catch(() => null);
 
     if (!body || typeof body !== "object") {
-      return badRequest("Body JSON no v\u00E1lido");
+      return badRequest("Body JSON no válido");
     }
 
     const id = Number(body.id || 0);
@@ -27,7 +26,7 @@ export const POST: APIRoute = async ({ request }) => {
       ok: true,
       item,
     });
-  } catch (error: any) {
+  } catch (error) {
     return serverError(error?.message || "No se pudo actualizar la noticia");
   }
 };

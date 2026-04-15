@@ -16,22 +16,17 @@ export function getDisplayStatus(status) {
   const normalized = raw.toLowerCase();
 
   if (!raw || normalized === "ok") {
-    return {
-      key: "pendiente",
-      label: "Pendiente",
-    };
+    return { value: "Pendiente", label: "Pendiente" };
   }
 
-  return {
-    key: normalized,
-    label: raw,
-  };
+  return { value: raw, label: raw };
 }
 
 export default function StatusBadge({ status }) {
   const display = getDisplayStatus(status);
+  const normalizedStatus = String(display.value).trim().toLowerCase();
   const className =
-    STATUS_STYLES[display.key] || "bg-slate-100 text-slate-700 border-slate-200";
+    STATUS_STYLES[normalizedStatus] || "bg-slate-100 text-slate-700 border-slate-200";
 
   return (
     <span
