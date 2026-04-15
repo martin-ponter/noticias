@@ -113,24 +113,6 @@ export async function listNews(params = {}) {
   const items = Array.isArray(result?.items) ? result.items : [];
   let mapped = items.map(fromBitrixItem);
 
-  console.log(
-    "[news-service] mapped list sample",
-    mapped.slice(0, 3).map((item) => ({
-      id: item.id,
-      titleOriginal: item.titleOriginal,
-      sourceSite: item.sourceSite,
-      sourceId: item.sourceId,
-      sourceUrl: item.sourceUrl,
-      summary: item.summary,
-      contentText: item.contentText,
-      contentHtml: item.contentHtml,
-      syncStatus: item.syncStatus,
-      editorNotes: item.editorNotes,
-      rejectionReason: item.rejectionReason,
-      readyToUpload: item.readyToUpload,
-    }))
-  );
-
   if (search) {
     const q = String(search).trim().toLowerCase();
 
@@ -213,6 +195,7 @@ export async function updateNews(id, payload) {
 
   const fields = toBitrixFields({
     ...payload,
+    syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: now,
   });
 
@@ -223,7 +206,15 @@ export async function updateNews(id, payload) {
   });
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
-  return await getNewsById(id);
+
+  const updated = await getNewsById(id);
+
+  return {
+    ...updated,
+    syncStatus: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    status: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    lastSyncAt: updated.lastSyncAt || now,
+  };
 }
 
 export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
@@ -242,5 +233,12 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
   });
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
-  return await getNewsById(id);
+
+  const updated = await getNewsById(id);
+
+  return {
+    ...updated,
+    syncStatus: updated.syncStatus || syncStatus,
+    status: updated.syncStatus || syncStatus,
+  };
 }

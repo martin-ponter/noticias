@@ -1,9 +1,10 @@
+import type { APIRoute } from "astro";
 import { updateNews } from "../../../lib/server/news-service.js";
 import { badRequest, json, serverError } from "../../../lib/server/response.js";
 
 export const prerender = false;
 
-export const POST = async ({ request }) => {
+export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json().catch(() => null);
 
@@ -26,8 +27,7 @@ export const POST = async ({ request }) => {
       ok: true,
       item,
     });
-  } catch (error) {
+  } catch (error: any) {
     return serverError(error?.message || "No se pudo actualizar la noticia");
   }
 };
-
