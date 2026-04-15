@@ -1,4 +1,4 @@
-import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
+import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig";
 import {
   crmItemAdd,
   crmItemGet,
@@ -80,6 +80,88 @@ function debugBitrixResponse(label, result) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeCompare(value) {
+  return String(value ?? "").trim();
+}
+
+function itemMatchesPatch(item, patch = {}) {
+  if (!item) return false;
+
+  const checks = [];
+
+  if (patch.titleOriginal !== undefined) {
+    checks.push(normalizeCompare(item.titleOriginal) === normalizeCompare(patch.titleOriginal));
+  }
+
+  if (patch.summary !== undefined) {
+    checks.push(normalizeCompare(item.summary) === normalizeCompare(patch.summary));
+  }
+
+  if (patch.contentText !== undefined) {
+    checks.push(normalizeCompare(item.contentText) === normalizeCompare(patch.contentText));
+  }
+
+  if (patch.editorNotes !== undefined) {
+    checks.push(normalizeCompare(item.editorNotes) === normalizeCompare(patch.editorNotes));
+  }
+
+  if (patch.syncStatus !== undefined) {
+    checks.push(normalizeCompare(item.syncStatus) === normalizeCompare(patch.syncStatus));
+  }
+
+  if (patch.lastSyncAt !== undefined) {
+    checks.push(Boolean(item.lastSyncAt));
+  }
+
+  return checks.length > 0 && checks.every(Boolean);
+}
+
+function mergeItemWithPatch(item, patch = {}) {
+  return {
+    ...item,
+    titleOriginal:
+      patch.titleOriginal !== undefined ? patch.titleOriginal : item.titleOriginal,
+    summary: patch.summary !== undefined ? patch.summary : item.summary,
+    contentText:
+      patch.contentText !== undefined ? patch.contentText : item.contentText,
+    editorNotes:
+      patch.editorNotes !== undefined ? patch.editorNotes : item.editorNotes,
+    syncStatus:
+      patch.syncStatus !== undefined ? patch.syncStatus : item.syncStatus,
+    status: patch.syncStatus !== undefined ? patch.syncStatus : item.status,
+    lastSyncAt:
+      patch.lastSyncAt !== undefined ? patch.lastSyncAt : item.lastSyncAt,
+  };
+}
+
+async function getNewsByIdFresh(id, expectedPatch = null) {
+  const maxAttempts = expectedPatch ? 4 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await crmItemGet(ENTITY_TYPE_ID, id);
+    debugBitrixResponse(`crm.item.get attempt ${attempt}`, result);
+
+    const rawItem = result?.item || result;
+    const mapped = fromBitrixItem(rawItem);
+
+    if (!expectedPatch || itemMatchesPatch(mapped, expectedPatch)) {
+      return mapped;
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(250);
+    }
+  }
+
+  const fallbackResult = await crmItemGet(ENTITY_TYPE_ID, id);
+  const fallbackRawItem = fallbackResult?.item || fallbackResult;
+  return fromBitrixItem(fallbackRawItem);
+}
+
 /**
  * @typedef {Object} ListNewsParams
  * @property {string=} syncStatus
@@ -138,12 +220,7 @@ export async function listNews(params = {}) {
 }
 
 export async function getNewsById(id) {
-  const result = await crmItemGet(ENTITY_TYPE_ID, id);
-
-  debugBitrixResponse("crm.item.get", result);
-
-  const rawItem = result?.item || result;
-  const mapped = fromBitrixItem(rawItem);
+  const mapped = await getNewsByIdFresh(id);
 
   console.log("[news-service] mapped single", {
     id: mapped.id,
@@ -193,11 +270,13 @@ export async function createNews(payload) {
 export async function updateNews(id, payload) {
   const now = new Date().toISOString();
 
-  const fields = toBitrixFields({
+  const patch = {
     ...payload,
     syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: now,
-  });
+  };
+
+  const fields = toBitrixFields(patch);
 
   console.log("[news-service] crm.item.update payload", {
     id: Number(id),
@@ -207,22 +286,32 @@ export async function updateNews(id, payload) {
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
 
-  const updated = await getNewsById(id);
+  const fresh = await getNewsByIdFresh(id, patch);
+  const merged = mergeItemWithPatch(fresh, patch);
 
-  return {
-    ...updated,
-    syncStatus: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
-    status: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
-    lastSyncAt: updated.lastSyncAt || now,
-  };
+  console.log("[news-service] updateNews merged result", {
+    id: merged.id,
+    titleOriginal: merged.titleOriginal,
+    summary: merged.summary,
+    contentText: merged.contentText?.slice?.(0, 120) || "",
+    editorNotes: merged.editorNotes,
+    syncStatus: merged.syncStatus,
+    lastSyncAt: merged.lastSyncAt,
+  });
+
+  return merged;
 }
 
 export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
-  const fields = toBitrixFields({
+  const now = new Date().toISOString();
+
+  const patch = {
     syncStatus,
     rejectionReason,
-    lastSyncAt: new Date().toISOString(),
-  });
+    lastSyncAt: now,
+  };
+
+  const fields = toBitrixFields(patch);
 
   console.log("[news-service] updateNewsStatus", {
     id: Number(id),
@@ -234,11 +323,8 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
 
   await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
 
-  const updated = await getNewsById(id);
+  const fresh = await getNewsByIdFresh(id, patch);
+  const merged = mergeItemWithPatch(fresh, patch);
 
-  return {
-    ...updated,
-    syncStatus: updated.syncStatus || syncStatus,
-    status: updated.syncStatus || syncStatus,
-  };
+  return merged;
 }

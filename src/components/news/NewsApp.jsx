@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
+import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig";
 import {
   ACCESS_DENIED_MESSAGE,
   BITRIX_CONTEXT_STATES,
@@ -71,6 +71,34 @@ function matchesSource(item, selectedSource) {
 
   const itemSource = normalizeText(item?.sourceSite || "");
   return itemSource === filterValue;
+}
+
+function mergeSavedFields(currentItem, serverItem, savedFields) {
+  const base = serverItem || currentItem;
+
+  return {
+    ...base,
+    ...(savedFields?.titleOriginal !== undefined
+      ? { titleOriginal: savedFields.titleOriginal }
+      : {}),
+    ...(savedFields?.summary !== undefined
+      ? { summary: savedFields.summary }
+      : {}),
+    ...(savedFields?.contentText !== undefined
+      ? { contentText: savedFields.contentText }
+      : {}),
+    ...(savedFields?.editorNotes !== undefined
+      ? { editorNotes: savedFields.editorNotes }
+      : {}),
+    syncStatus:
+      serverItem?.syncStatus ||
+      BITRIX_APP_CONFIG.STATUS.EDITADA,
+    status:
+      serverItem?.syncStatus ||
+      BITRIX_APP_CONFIG.STATUS.EDITADA,
+    lastSyncAt:
+      serverItem?.lastSyncAt || new Date().toISOString(),
+  };
 }
 
 export default function NewsApp() {
@@ -239,7 +267,11 @@ export default function NewsApp() {
         }),
       });
 
-      const updatedItem = payload.item;
+      const updatedItem = {
+        ...payload.item,
+        syncStatus: payload.item?.syncStatus || nextStatus,
+        status: payload.item?.syncStatus || nextStatus,
+      };
 
       setItems((prev) =>
         sortItems(
@@ -271,7 +303,7 @@ export default function NewsApp() {
         }),
       });
 
-      const updatedItem = payload.item;
+      const updatedItem = mergeSavedFields(selectedItem, payload.item, fields);
 
       setItems((prev) =>
         sortItems(
