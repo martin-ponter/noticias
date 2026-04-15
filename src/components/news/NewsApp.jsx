@@ -256,53 +256,58 @@ export default function NewsApp() {
     }
   }
 
-  async function handleSaveNewsFields(fields) {
-    if (!selectedItem || saveLoading) return;
+ async function handleSaveNewsFields(fields) {
+  if (!selectedItem || saveLoading) return;
 
-    setSaveLoading(true);
-    setError("");
+  setSaveLoading(true);
+  setError("");
 
-    try {
-      const savedPayload = await fetchJson("/api/news/update", {
-        method: "POST",
-        body: JSON.stringify({
-          id: selectedItem.id,
-          fields,
-        }),
-      });
+  try {
+    const savedPayload = await fetchJson("/api/news/update", {
+      method: "POST",
+      body: JSON.stringify({
+        id: selectedItem.id,
+        fields,
+      }),
+    });
 
-      const savedItem = savedPayload.item;
+    const savedItem = savedPayload.item;
 
-      const statusPayload = await fetchJson("/api/news/update-status", {
-        method: "POST",
-        body: JSON.stringify({
-          id: selectedItem.id,
-          status: BITRIX_APP_CONFIG.STATUS.EDITADA,
-        }),
-      });
-
-      const finalItem = {
-        ...savedItem,
-        ...statusPayload.item,
-        syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
+    const statusPayload = await fetchJson("/api/news/update-status", {
+      method: "POST",
+      body: JSON.stringify({
+        id: selectedItem.id,
         status: BITRIX_APP_CONFIG.STATUS.EDITADA,
-      };
+      }),
+    });
 
-      setItems((prev) =>
-        sortItems(
-          prev.map((item) =>
-            Number(item.id) === Number(finalItem.id) ? finalItem : item
-          )
+    const statusItem = statusPayload.item;
+
+    const finalItem = {
+      ...statusItem,
+      ...savedItem,
+      syncStatus:
+        statusItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+      status:
+        statusItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+      lastSyncAt:
+        statusItem?.lastSyncAt || savedItem?.lastSyncAt || new Date().toISOString(),
+    };
+
+    setItems((prev) =>
+      sortItems(
+        prev.map((item) =>
+          Number(item.id) === Number(finalItem.id) ? finalItem : item
         )
-      );
-      setSelectedId(finalItem.id);
-    } catch (err) {
-      setError(err?.message || "No se pudieron guardar los cambios");
-    } finally {
-      setSaveLoading(false);
-    }
+      )
+    );
+    setSelectedId(finalItem.id);
+  } catch (err) {
+    setError(err?.message || "No se pudieron guardar los cambios");
+  } finally {
+    setSaveLoading(false);
   }
-
+}
   function handleGenerate() {
     return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
   }
