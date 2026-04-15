@@ -89,14 +89,23 @@ function getFieldCandidates(fieldName) {
   const normalized = normalizeString(fieldName);
   if (!normalized) return [];
 
-  const camelCase = normalized
-    .toLowerCase()
-    .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
-  const lowerCase = normalized.toLowerCase();
-  const upperCase = normalized.toUpperCase();
-  const firstLower = normalized.charAt(0).toLowerCase() + normalized.slice(1);
+  const candidates = new Set([
+    normalized,
+    normalized.toLowerCase(),
+    normalized.toUpperCase(),
+    normalized.charAt(0).toLowerCase() + normalized.slice(1),
+  ]);
 
-  return [...new Set([normalized, camelCase, lowerCase, upperCase, firstLower])];
+  // Caso especial Bitrix:
+  // UF_CRM_25_1776172329 -> ufCrm25_1776172329
+  const ufMatch = normalized.match(/^UF_CRM_(\d+)_(.+)$/i);
+  if (ufMatch) {
+    const [, entityId, suffix] = ufMatch;
+    candidates.add(`ufCrm${entityId}_${suffix}`);
+    candidates.add(`UF_CRM_${entityId}_${suffix}`);
+  }
+
+  return [...candidates];
 }
 
 function readFieldValue(item, fieldName) {
