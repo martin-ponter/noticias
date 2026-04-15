@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { initBitrix, isInsideBitrix } from "../../lib/bitrix/bootstrap";
+import {
+  ACCESS_DENIED_MESSAGE,
+  getBitrixContext,
+  initBitrix,
+} from "../../lib/bitrix/bootstrap";
 import { tryFinishInstall } from "../../lib/bitrix/install";
 import { getCurrentBitrixUserRaw, normalizeBitrixUser } from "../../lib/bitrix/user";
 import NewsSidebar from "./NewsSidebar";
@@ -48,6 +52,7 @@ const MOCK_ITEMS = [
 export default function NewsApp() {
   const [bootLoading, setBootLoading] = useState(true);
   const [bitrixReady, setBitrixReady] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState(MOCK_ITEMS);
   const [selectedId, setSelectedId] = useState(MOCK_ITEMS[0]?.id ?? null);
@@ -59,30 +64,47 @@ export default function NewsApp() {
     async function boot() {
       setBootLoading(true);
       setError("");
+      setAccessDenied(false);
 
       try {
-        if (!isInsideBitrix()) {
+        const context = getBitrixContext();
+
+        if (!context.hasBitrixHints) {
           if (!cancelled) {
             setBitrixReady(false);
-            setBootLoading(false);
+            setAccessDenied(true);
           }
           return;
         }
 
-        await initBitrix();
-        await tryFinishInstall();
+        const { bx24 } = await initBitrix();
+        await tryFinishInstall(bx24);
 
-        const rawUser = await getCurrentBitrixUserRaw();
-        const normalizedUser = normalizeBitrixUser(rawUser);
+        let normalizedUser = null;
+
+        try {
+          const rawUser = await getCurrentBitrixUserRaw();
+          normalizedUser = normalizeBitrixUser(rawUser);
+        } catch (userError) {
+          console.warn("No se pudo obtener el usuario actual de Bitrix24:", userError);
+        }
 
         if (!cancelled) {
           setUser(normalizedUser);
           setBitrixReady(true);
+          setAccessDenied(false);
         }
       } catch (err) {
         console.error(err);
         if (!cancelled) {
-          setError(err?.message || "Error iniciando la app en Bitrix");
+          setBitrixReady(false);
+
+          if (err?.message === ACCESS_DENIED_MESSAGE) {
+            setAccessDenied(true);
+            return;
+          }
+
+          setError(err?.message || "Error iniciando la app en Bitrix24");
         }
       } finally {
         if (!cancelled) {
@@ -171,6 +193,22 @@ export default function NewsApp() {
     );
   }
 
+  if (accessDenied || !bitrixReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+        <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">
+            {ACCESS_DENIED_MESSAGE}
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Esta aplicacion solo puede abrirse desde un portal Bitrix24 con un contexto
+            valido de la app.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-6 py-4">
@@ -184,7 +222,7 @@ export default function NewsApp() {
 
           <div className="text-right text-sm text-slate-500">
             <div>
-              <strong>Entorno:</strong> {bitrixReady ? "Bitrix24" : "Local"}
+              <strong>Entorno:</strong> Bitrix24
             </div>
             <div>
               <strong>Usuario:</strong> {user?.name || "No identificado"}
