@@ -43,7 +43,11 @@ export function isInstallMode() {
 export function initBitrix() {
   return new Promise((resolve, reject) => {
     if (!hasBX24()) {
-      reject(new Error("BX24 no está disponible"));
+      reject(
+        new Error(
+          "BX24 no está disponible. Revisa que el script https://api.bitrix24.com/api/v1/ esté cargado y que la app en Bitrix apunte a /api/bitrix-entry."
+        )
+      );
       return;
     }
 
