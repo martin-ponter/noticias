@@ -62,7 +62,7 @@ export default function NewsSidebar({
   const sourceOptions = useMemo(() => buildSourceOptions(items), [items]);
 
   return (
-    <aside className="min-h-0 border-r border-slate-200 bg-slate-50 xl:h-[calc(100vh-73px)]">
+    <aside className="h-full min-h-0 min-w-0 border-r border-slate-200 bg-slate-50">
       <div className="flex h-full min-h-0 flex-col">
         <div className="border-b border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-slate-50/80">
           <div className="space-y-3">

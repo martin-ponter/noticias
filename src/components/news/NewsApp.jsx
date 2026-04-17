@@ -406,42 +406,44 @@ export default function NewsApp() {
         </div>
       </header>
 
-      <div className="grid h-[calc(100vh-73px)] min-h-0 grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <NewsSidebar
-          items={filteredItems}
-          selectedItem={selectedItem}
-          onSelect={(item) => setSelectedId(item.id)}
-          loading={newsLoading}
-          error={error}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          selectedStatus={selectedStatusFilter}
-          onSelectedStatusChange={setSelectedStatusFilter}
-          selectedSource={selectedSourceFilter}
-          onSelectedSourceChange={setSelectedSourceFilter}
-        />
-
-        <main className="flex min-h-0 flex-col overflow-hidden">
-          <NewsToolbar
+      <div className="h-[calc(100vh-73px)] overflow-x-auto overflow-y-hidden">
+        <div className="grid h-full min-h-0 min-w-[760px] grid-cols-[280px_minmax(0,1fr)] md:min-w-0 md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
+          <NewsSidebar
+            items={filteredItems}
             selectedItem={selectedItem}
-            onGenerate={handleGenerate}
-            onRegenerate={handleRegenerate}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            disabled={actionLoading || newsLoading || saveLoading}
+            onSelect={(item) => setSelectedId(item.id)}
+            loading={newsLoading}
+            error={error}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            selectedStatus={selectedStatusFilter}
+            onSelectedStatusChange={setSelectedStatusFilter}
+            selectedSource={selectedSourceFilter}
+            onSelectedSourceChange={setSelectedSourceFilter}
           />
 
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <NewsDetail
-              item={selectedItem}
-              loading={newsLoading}
-              error={error}
-              isEmpty={!newsLoading && !error && filteredItems.length === 0}
-              onSave={handleSaveNewsFields}
-              saving={saveLoading}
+          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <NewsToolbar
+              selectedItem={selectedItem}
+              onGenerate={handleGenerate}
+              onRegenerate={handleRegenerate}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              disabled={actionLoading || newsLoading || saveLoading}
             />
-          </div>
-        </main>
+
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <NewsDetail
+                item={selectedItem}
+                loading={newsLoading}
+                error={error}
+                isEmpty={!newsLoading && !error && filteredItems.length === 0}
+                onSave={handleSaveNewsFields}
+                saving={saveLoading}
+              />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
