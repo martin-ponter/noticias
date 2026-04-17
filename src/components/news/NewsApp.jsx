@@ -90,14 +90,9 @@ function mergeSavedFields(currentItem, serverItem, savedFields) {
     ...(savedFields?.editorNotes !== undefined
       ? { editorNotes: savedFields.editorNotes }
       : {}),
-    syncStatus:
-      serverItem?.syncStatus ||
-      BITRIX_APP_CONFIG.STATUS.EDITADA,
-    status:
-      serverItem?.syncStatus ||
-      BITRIX_APP_CONFIG.STATUS.EDITADA,
-    lastSyncAt:
-      serverItem?.lastSyncAt || new Date().toISOString(),
+    syncStatus: serverItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    status: serverItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    lastSyncAt: serverItem?.lastSyncAt || new Date().toISOString(),
   };
 }
 
@@ -134,13 +129,14 @@ export default function NewsApp() {
           status: result.status,
           bx24Available: Boolean(result.bx24),
           matchedQueryKeys: result.context?.matchedQueryKeys || [],
-          contextValidatedByParams: result.context?.contextValidatedByParams,
+          probableBitrix: result.context?.probableBitrix,
           installMode: result.context?.installMode,
         });
 
         if (result.status === BITRIX_CONTEXT_STATES.OUTSIDE) {
           if (!cancelled) {
             setContextState(BITRIX_CONTEXT_STATES.OUTSIDE);
+            setBitrixReady(false);
           }
           return;
         }
@@ -169,7 +165,7 @@ export default function NewsApp() {
 
         if (!cancelled) {
           setBitrixReady(false);
-          setContextState(BITRIX_CONTEXT_STATES.INSIDE);
+          setContextState(BITRIX_CONTEXT_STATES.OUTSIDE);
           setError(err?.message || "Error iniciando la app en Bitrix24");
         }
       }
@@ -370,25 +366,15 @@ export default function NewsApp() {
             Esta aplicación solo puede abrirse desde un portal Bitrix24 con un contexto
             válido de la app.
           </p>
+          {error ? (
+            <p className="mt-4 text-xs text-rose-600">{error}</p>
+          ) : null}
         </div>
       </div>
     );
   }
 
   if (!bitrixReady) {
-    if (error) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-          <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-xl font-semibold text-slate-900">
-              No se pudo iniciar la app en Bitrix24
-            </h1>
-            <p className="mt-3 text-sm text-slate-600">{error}</p>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">

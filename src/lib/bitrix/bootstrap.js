@@ -6,8 +6,6 @@ export const BITRIX_CONTEXT_STATES = {
   OUTSIDE: "outside_bitrix",
 };
 
-const REQUIRED_CONTEXT_KEYS = ["AUTH_ID", "APP_SID", "member_id"];
-
 const BITRIX_QUERY_KEYS = [
   "DOMAIN",
   "AUTH_ID",
@@ -54,10 +52,6 @@ function matchesBitrixHost(value) {
   return normalized.includes("bitrix24.") || normalized.includes(".bitrix.");
 }
 
-function hasAnyMatchedKey(matchedQueryKeys, keys) {
-  return keys.some((key) => matchedQueryKeys.includes(key));
-}
-
 function hasBitrixReferrer(referrer) {
   if (!referrer) return false;
 
@@ -87,39 +81,52 @@ export function getQueryParams() {
 export function getBitrixContextSnapshot() {
   const currentWindow = getGlobalWindow();
   const params = getQueryParams();
+
   const matchedQueryKeys = BITRIX_QUERY_KEYS.filter((key) => {
     const value = params.get(key);
     return value !== null && String(value).trim() !== "";
   });
+
   const bx24Available = hasBX24();
+  const bx24 = getBX24();
+
+  const bx24ShapeValid =
+    !!bx24 &&
+    typeof bx24 === "object" &&
+    (
+      typeof bx24.init === "function" ||
+      typeof bx24.callMethod === "function" ||
+      typeof bx24.installFinish === "function"
+    );
+
   const insideIframe = safeIsInsideIframe();
   const referrer = safeGetReferrer();
   const bitrixReferrer = hasBitrixReferrer(referrer);
+
   const domain = params.get("DOMAIN") || "";
   const placement = normalizeValue(params.get("PLACEMENT"));
   const installFlag = normalizeValue(params.get("install"));
+
   const hasBitrixDomain = matchesBitrixHost(domain);
-  const hasRequiredContextKey = hasAnyMatchedKey(
-    matchedQueryKeys,
-    REQUIRED_CONTEXT_KEYS
-  );
-  const strongQuerySignal =
-    hasBitrixDomain && hasRequiredContextKey;
   const hasQuerySignals = matchedQueryKeys.length > 0;
-  const iframeSignal = insideIframe && (bitrixReferrer || hasQuerySignals);
+
   const installMode =
     placement.includes("install") || isTruthyInstallFlag(installFlag);
-  const installContextValid =
-    hasBitrixDomain &&
-    installMode &&
-    matchedQueryKeys.includes("APP_SID");
-  const contextValidatedByParams = strongQuerySignal || installContextValid;
-  const bx24ShapeValid =
-    bx24Available &&
-    typeof currentWindow?.BX24 === "object" &&
-    (typeof currentWindow?.BX24?.init === "function" ||
-      typeof currentWindow?.BX24?.callMethod === "function" ||
-      typeof currentWindow?.BX24?.installFinish === "function");
+
+  const querySignalStrong =
+    hasBitrixDomain ||
+    matchedQueryKeys.includes("AUTH_ID") ||
+    matchedQueryKeys.includes("APP_SID") ||
+    matchedQueryKeys.includes("member_id");
+
+  const iframeSignal = insideIframe && bitrixReferrer;
+  const iframeWithParamsSignal = insideIframe && hasQuerySignals;
+
+  const probableBitrix =
+    bx24ShapeValid ||
+    querySignalStrong ||
+    iframeSignal ||
+    iframeWithParamsSignal;
 
   return {
     params,
@@ -127,24 +134,23 @@ export function getBitrixContextSnapshot() {
     bx24ShapeValid,
     matchedQueryKeys,
     hasQuerySignals,
-    strongQuerySignal,
-    hasBitrixDomain,
-    hasRequiredContextKey,
-    contextValidatedByParams,
     insideIframe,
     referrer,
     bitrixReferrer,
-    iframeSignal,
-    installMode,
-    installContextValid,
     domain,
+    hasBitrixDomain,
     placement,
     installFlag,
+    installMode,
+    querySignalStrong,
+    iframeSignal,
+    iframeWithParamsSignal,
+    probableBitrix,
   };
 }
 
 export function isInsideBitrix() {
-  return getBitrixContextSnapshot().contextValidatedByParams;
+  return getBitrixContextSnapshot().probableBitrix;
 }
 
 export function isInstallMode() {
@@ -167,7 +173,7 @@ export function waitForBitrixContext({
       return;
     }
 
-    if (initialSnapshot.contextValidatedByParams) {
+    if (initialSnapshot.probableBitrix) {
       resolve({
         state: BITRIX_CONTEXT_STATES.INSIDE,
         snapshot: initialSnapshot,
@@ -176,10 +182,11 @@ export function waitForBitrixContext({
     }
 
     const startedAt = Date.now();
+
     const timer = currentWindow.setInterval(() => {
       const snapshot = getBitrixContextSnapshot();
 
-      if (snapshot.contextValidatedByParams) {
+      if (snapshot.probableBitrix) {
         currentWindow.clearInterval(timer);
         resolve({
           state: BITRIX_CONTEXT_STATES.INSIDE,
@@ -202,7 +209,7 @@ export function waitForBitrixContext({
 function initBX24Instance(bx24, initTimeoutMs) {
   return new Promise((resolve, reject) => {
     if (!bx24) {
-      reject(new Error("BX24 no esta disponible"));
+      reject(new Error("BX24 no está disponible"));
       return;
     }
 
@@ -256,15 +263,16 @@ export async function initBitrix({
   console.log("[bitrix-bootstrap] context check", {
     state: contextCheck.state,
     matchedQueryKeys: contextCheck.snapshot.matchedQueryKeys,
-    hasBitrixDomain: contextCheck.snapshot.hasBitrixDomain,
-    hasRequiredContextKey: contextCheck.snapshot.hasRequiredContextKey,
-    contextValidatedByParams: contextCheck.snapshot.contextValidatedByParams,
     bx24Available: contextCheck.snapshot.bx24Available,
     bx24ShapeValid: contextCheck.snapshot.bx24ShapeValid,
     insideIframe: contextCheck.snapshot.insideIframe,
     bitrixReferrer: contextCheck.snapshot.bitrixReferrer,
+    hasBitrixDomain: contextCheck.snapshot.hasBitrixDomain,
+    querySignalStrong: contextCheck.snapshot.querySignalStrong,
+    iframeSignal: contextCheck.snapshot.iframeSignal,
+    iframeWithParamsSignal: contextCheck.snapshot.iframeWithParamsSignal,
+    probableBitrix: contextCheck.snapshot.probableBitrix,
     installMode: contextCheck.snapshot.installMode,
-    installContextValid: contextCheck.snapshot.installContextValid,
     placement: contextCheck.snapshot.placement,
     domain: contextCheck.snapshot.domain,
   });
