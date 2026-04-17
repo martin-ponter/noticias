@@ -270,13 +270,11 @@ export async function createNews(payload) {
 export async function updateNews(id, payload) {
   const now = new Date().toISOString();
 
-  const patch = {
+  const fields = toBitrixFields({
     ...payload,
     syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: now,
-  };
-
-  const fields = toBitrixFields(patch);
+  });
 
   console.log("[news-service] crm.item.update payload", {
     id: Number(id),
@@ -284,22 +282,30 @@ export async function updateNews(id, payload) {
     fieldsPreview: fields,
   });
 
-  await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
+  const updateResult = await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
 
-  const fresh = await getNewsByIdFresh(id, patch);
-  const merged = mergeItemWithPatch(fresh, patch);
-
-  console.log("[news-service] updateNews merged result", {
-    id: merged.id,
-    titleOriginal: merged.titleOriginal,
-    summary: merged.summary,
-    contentText: merged.contentText?.slice?.(0, 120) || "",
-    editorNotes: merged.editorNotes,
-    syncStatus: merged.syncStatus,
-    lastSyncAt: merged.lastSyncAt,
+  console.log("[news-service] crm.item.update returned", {
+    id: Number(id),
+    updateResult,
   });
 
-  return merged;
+  const updated = await getNewsById(id);
+
+  console.log("[news-service] crm.item.get after update", {
+    id: Number(id),
+    updatedSummary: updated.summary,
+    updatedTitle: updated.titleOriginal,
+    updatedContentStart: String(updated.contentText || "").slice(0, 120),
+    updatedSyncStatus: updated.syncStatus,
+    updatedLastSyncAt: updated.lastSyncAt,
+  });
+
+  return {
+    ...updated,
+    syncStatus: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    status: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
+    lastSyncAt: updated.lastSyncAt || now,
+  };
 }
 
 export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {

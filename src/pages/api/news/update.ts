@@ -21,6 +21,13 @@ export const POST: APIRoute = async ({ request }) => {
     const fields =
       body.fields && typeof body.fields === "object" ? body.fields : {};
 
+    console.log("[api/news/update] request payload", {
+      rawBody: body,
+      id,
+      fieldKeys: Object.keys(fields),
+      fields,
+    });
+
     const item = await updateNews(id, fields);
 
     return json({
