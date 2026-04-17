@@ -132,6 +132,11 @@ function debugMappedItem(rawItem, mappedItem) {
     F.SOURCE_URL,
     F.SUMMARY,
     F.CONTENT_TEXT,
+    F.AI_WEB_TITLE,
+    F.AI_WEB_EXCERPT,
+    F.AI_WEB_CONTENT,
+    F.AI_LINKEDIN_POST,
+    F.AI_LINKEDIN_HASHTAGS,
     F.SYNC_STATUS,
     F.EDITOR_NOTES,
     F.REJECTION_REASON,
@@ -151,6 +156,8 @@ function debugMappedItem(rawItem, mappedItem) {
       titleOriginal: mappedItem.titleOriginal,
       sourceSite: mappedItem.sourceSite,
       summary: mappedItem.summary,
+      aiWebTitle: mappedItem.aiWebTitle,
+      aiLinkedinPost: mappedItem.aiLinkedinPost,
       syncStatus: mappedItem.syncStatus,
     },
   });
@@ -199,6 +206,21 @@ export function fromBitrixItem(item) {
     summary: normalizeNullableString(readFieldValue(item, F.SUMMARY)),
     contentText: normalizeNullableString(readFieldValue(item, F.CONTENT_TEXT)),
     contentHtml: normalizeNullableString(readFieldValue(item, F.CONTENT_HTML)),
+    aiWebTitle: normalizeNullableString(readFieldValue(item, F.AI_WEB_TITLE)),
+    aiWebExcerpt: normalizeNullableString(readFieldValue(item, F.AI_WEB_EXCERPT)),
+    aiWebContent: normalizeNullableString(readFieldValue(item, F.AI_WEB_CONTENT)),
+    aiWebStatus: normalizeNullableString(readFieldValue(item, F.AI_WEB_STATUS)),
+    aiWebGeneratedAt: normalizeDate(readFieldValue(item, F.AI_WEB_GENERATED_AT)),
+    aiWebError: normalizeNullableString(readFieldValue(item, F.AI_WEB_ERROR)),
+    aiLinkedinPost: normalizeNullableString(readFieldValue(item, F.AI_LINKEDIN_POST)),
+    aiLinkedinHashtags: normalizeNullableString(
+      readFieldValue(item, F.AI_LINKEDIN_HASHTAGS)
+    ),
+    aiLinkedinStatus: normalizeNullableString(readFieldValue(item, F.AI_LINKEDIN_STATUS)),
+    aiLinkedinGeneratedAt: normalizeDate(
+      readFieldValue(item, F.AI_LINKEDIN_GENERATED_AT)
+    ),
+    aiLinkedinError: normalizeNullableString(readFieldValue(item, F.AI_LINKEDIN_ERROR)),
 
     headings: splitPipeList(readFieldValue(item, F.HEADINGS)),
     images: splitPipeList(readFieldValue(item, F.IMAGES)),
@@ -308,6 +330,50 @@ export function toBitrixFields(payload = {}) {
     fields[F.CONTENT_HTML] = normalizeString(payload.contentHtml);
   }
 
+  if (payload.aiWebTitle !== undefined) {
+    fields[F.AI_WEB_TITLE] = normalizeString(payload.aiWebTitle);
+  }
+
+  if (payload.aiWebExcerpt !== undefined) {
+    fields[F.AI_WEB_EXCERPT] = normalizeString(payload.aiWebExcerpt);
+  }
+
+  if (payload.aiWebContent !== undefined) {
+    fields[F.AI_WEB_CONTENT] = normalizeString(payload.aiWebContent);
+  }
+
+  if (payload.aiWebStatus !== undefined) {
+    fields[F.AI_WEB_STATUS] = normalizeString(payload.aiWebStatus);
+  }
+
+  if (payload.aiWebGeneratedAt !== undefined) {
+    fields[F.AI_WEB_GENERATED_AT] = payload.aiWebGeneratedAt || "";
+  }
+
+  if (payload.aiWebError !== undefined) {
+    fields[F.AI_WEB_ERROR] = normalizeString(payload.aiWebError);
+  }
+
+  if (payload.aiLinkedinPost !== undefined) {
+    fields[F.AI_LINKEDIN_POST] = normalizeString(payload.aiLinkedinPost);
+  }
+
+  if (payload.aiLinkedinHashtags !== undefined) {
+    fields[F.AI_LINKEDIN_HASHTAGS] = normalizeString(payload.aiLinkedinHashtags);
+  }
+
+  if (payload.aiLinkedinStatus !== undefined) {
+    fields[F.AI_LINKEDIN_STATUS] = normalizeString(payload.aiLinkedinStatus);
+  }
+
+  if (payload.aiLinkedinGeneratedAt !== undefined) {
+    fields[F.AI_LINKEDIN_GENERATED_AT] = payload.aiLinkedinGeneratedAt || "";
+  }
+
+  if (payload.aiLinkedinError !== undefined) {
+    fields[F.AI_LINKEDIN_ERROR] = normalizeString(payload.aiLinkedinError);
+  }
+
   if (payload.headings !== undefined) {
     fields[F.HEADINGS] = Array.isArray(payload.headings)
       ? joinPipeList(payload.headings)
@@ -341,6 +407,8 @@ export function toBitrixFields(payload = {}) {
     titleOriginal: fields[F.TITLE_ORIGINAL] || "",
     bitrixTitle: fields[F.BITRIX_TITLE] || "",
     summary: fields[F.SUMMARY] || "",
+    aiWebTitle: fields[F.AI_WEB_TITLE] || "",
+    aiLinkedinPost: fields[F.AI_LINKEDIN_POST] || "",
     syncStatus: fields[F.SYNC_STATUS] || "",
   });
 

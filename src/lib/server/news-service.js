@@ -45,6 +45,26 @@ function summarizeItem(item) {
       item.ufCrm25_1776172691 ||
       item.UF_CRM_25_1776172691 ||
       null,
+    aiWebTitle:
+      item.ufCrm25_1776418820 ||
+      item.UF_CRM_25_1776418820 ||
+      null,
+    aiWebExcerpt:
+      item.ufCrm25_1776418835 ||
+      item.UF_CRM_25_1776418835 ||
+      null,
+    aiWebContent:
+      item.ufCrm25_1776418853 ||
+      item.UF_CRM_25_1776418853 ||
+      null,
+    aiLinkedinPost:
+      item.ufCrm25_1776418701 ||
+      item.UF_CRM_25_1776418701 ||
+      null,
+    aiLinkedinHashtags:
+      item.ufCrm25_1776418735 ||
+      item.UF_CRM_25_1776418735 ||
+      null,
     syncStatus:
       item.ufCrm25_1776172478 ||
       item.UF_CRM_25_1776172478 ||
@@ -115,6 +135,38 @@ function itemMatchesPatch(item, patch = {}) {
     );
   }
 
+  if (patch.aiWebTitle !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiWebTitle) === normalizeCompare(patch.aiWebTitle)
+    );
+  }
+
+  if (patch.aiWebExcerpt !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiWebExcerpt) === normalizeCompare(patch.aiWebExcerpt)
+    );
+  }
+
+  if (patch.aiWebContent !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiWebContent) === normalizeCompare(patch.aiWebContent)
+    );
+  }
+
+  if (patch.aiLinkedinPost !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiLinkedinPost) ===
+        normalizeCompare(patch.aiLinkedinPost)
+    );
+  }
+
+  if (patch.aiLinkedinHashtags !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiLinkedinHashtags) ===
+        normalizeCompare(patch.aiLinkedinHashtags)
+    );
+  }
+
   if (patch.syncStatus !== undefined) {
     checks.push(
       normalizeCompare(item.syncStatus) === normalizeCompare(patch.syncStatus)
@@ -145,6 +197,20 @@ function mergeItemWithPatch(item, patch = {}) {
       patch.contentText !== undefined ? patch.contentText : item.contentText,
     editorNotes:
       patch.editorNotes !== undefined ? patch.editorNotes : item.editorNotes,
+    aiWebTitle:
+      patch.aiWebTitle !== undefined ? patch.aiWebTitle : item.aiWebTitle,
+    aiWebExcerpt:
+      patch.aiWebExcerpt !== undefined ? patch.aiWebExcerpt : item.aiWebExcerpt,
+    aiWebContent:
+      patch.aiWebContent !== undefined ? patch.aiWebContent : item.aiWebContent,
+    aiLinkedinPost:
+      patch.aiLinkedinPost !== undefined
+        ? patch.aiLinkedinPost
+        : item.aiLinkedinPost,
+    aiLinkedinHashtags:
+      patch.aiLinkedinHashtags !== undefined
+        ? patch.aiLinkedinHashtags
+        : item.aiLinkedinHashtags,
     rejectionReason:
       patch.rejectionReason !== undefined
         ? patch.rejectionReason
@@ -250,6 +316,17 @@ export async function getNewsById(id) {
     summary: mapped.summary,
     contentText: mapped.contentText,
     contentHtml: mapped.contentHtml,
+    aiWebTitle: mapped.aiWebTitle,
+    aiWebExcerpt: mapped.aiWebExcerpt,
+    aiWebContent: mapped.aiWebContent,
+    aiWebStatus: mapped.aiWebStatus,
+    aiWebGeneratedAt: mapped.aiWebGeneratedAt,
+    aiWebError: mapped.aiWebError,
+    aiLinkedinPost: mapped.aiLinkedinPost,
+    aiLinkedinHashtags: mapped.aiLinkedinHashtags,
+    aiLinkedinStatus: mapped.aiLinkedinStatus,
+    aiLinkedinGeneratedAt: mapped.aiLinkedinGeneratedAt,
+    aiLinkedinError: mapped.aiLinkedinError,
     syncStatus: mapped.syncStatus,
     editorNotes: mapped.editorNotes,
     rejectionReason: mapped.rejectionReason,
@@ -314,6 +391,8 @@ export async function updateNews(id, payload) {
     summary: merged.summary,
     contentText: merged.contentText?.slice?.(0, 120) || "",
     editorNotes: merged.editorNotes,
+    aiWebTitle: merged.aiWebTitle,
+    aiLinkedinPost: merged.aiLinkedinPost,
     syncStatus: merged.syncStatus,
     lastSyncAt: merged.lastSyncAt,
   });

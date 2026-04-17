@@ -11,6 +11,12 @@ import NewsSidebar from "./NewsSidebar";
 import NewsToolbar from "./NewsToolbar";
 import NewsDetail from "./NewsDetail";
 
+const DETAIL_VIEWS = {
+  ORIGINAL: "original",
+  WEB: "web",
+  LINKEDIN: "linkedin",
+};
+
 async function fetchJson(url, init) {
   const response = await fetch(url, {
     headers: {
@@ -90,6 +96,21 @@ function mergeSavedFields(currentItem, serverItem, savedFields) {
     ...(savedFields?.editorNotes !== undefined
       ? { editorNotes: savedFields.editorNotes }
       : {}),
+    ...(savedFields?.aiWebTitle !== undefined
+      ? { aiWebTitle: savedFields.aiWebTitle }
+      : {}),
+    ...(savedFields?.aiWebExcerpt !== undefined
+      ? { aiWebExcerpt: savedFields.aiWebExcerpt }
+      : {}),
+    ...(savedFields?.aiWebContent !== undefined
+      ? { aiWebContent: savedFields.aiWebContent }
+      : {}),
+    ...(savedFields?.aiLinkedinPost !== undefined
+      ? { aiLinkedinPost: savedFields.aiLinkedinPost }
+      : {}),
+    ...(savedFields?.aiLinkedinHashtags !== undefined
+      ? { aiLinkedinHashtags: savedFields.aiLinkedinHashtags }
+      : {}),
     syncStatus: serverItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
     status: serverItem?.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: serverItem?.lastSyncAt || new Date().toISOString(),
@@ -106,6 +127,7 @@ export default function NewsApp() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [selectedView, setSelectedView] = useState(DETAIL_VIEWS.ORIGINAL);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("");
@@ -326,7 +348,13 @@ export default function NewsApp() {
     }
   }
 
-  function handleGenerate() {
+  function handleGenerateWeb() {
+    setSelectedView(DETAIL_VIEWS.WEB);
+    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
+  }
+
+  function handleGenerateLinkedin() {
+    setSelectedView(DETAIL_VIEWS.LINKEDIN);
     return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
   }
 
@@ -425,7 +453,10 @@ export default function NewsApp() {
           <main className="flex min-h-0 min-w-0 flex-col overflow-hidden">
             <NewsToolbar
               selectedItem={selectedItem}
-              onGenerate={handleGenerate}
+              selectedView={selectedView}
+              onSelectedViewChange={setSelectedView}
+              onGenerateWeb={handleGenerateWeb}
+              onGenerateLinkedin={handleGenerateLinkedin}
               onRegenerate={handleRegenerate}
               onApprove={handleApprove}
               onReject={handleReject}
@@ -434,13 +465,14 @@ export default function NewsApp() {
 
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
               <NewsDetail
-                item={selectedItem}
-                loading={newsLoading}
-                error={error}
-                isEmpty={!newsLoading && !error && filteredItems.length === 0}
-                onSave={handleSaveNewsFields}
-                saving={saveLoading}
-              />
+              item={selectedItem}
+              loading={newsLoading}
+              error={error}
+              isEmpty={!newsLoading && !error && filteredItems.length === 0}
+              selectedView={selectedView}
+              onSave={handleSaveNewsFields}
+              saving={saveLoading}
+            />
             </div>
           </main>
         </div>
