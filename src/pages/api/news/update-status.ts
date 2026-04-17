@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { updateNewsStatus } from "../../../lib/server/news-service.js";
+import { updateNews } from "../../../lib/server/news-service.js";
 import { badRequest, json, serverError } from "../../../lib/server/response.js";
 
 export const prerender = false;
@@ -26,7 +26,7 @@ export const POST: APIRoute = async ({ request }) => {
       return badRequest("status es obligatorio");
     }
 
-    const item = await updateNewsStatus(id, status, rejectionReason);
+    const item = await updateNews(id, { syncStatus: status, rejectionReason });
 
     return json({
       ok: true,

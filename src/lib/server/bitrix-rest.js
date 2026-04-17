@@ -57,11 +57,20 @@ export async function crmItemAdd(entityTypeId, fields) {
 }
 
 export async function crmItemUpdate(entityTypeId, id, fields) {
-  return await callBitrix("crm.item.update", {
+  const result = await callBitrix("crm.item.update", {
     entityTypeId,
     id: Number(id),
     fields,
   });
+
+  console.log("[bitrix-rest] crm.item.update raw result", {
+    entityTypeId,
+    id: Number(id),
+    fields,
+    result,
+  });
+
+  return result;
 }
 
 export async function crmItemFields(entityTypeId) {
