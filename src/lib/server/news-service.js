@@ -94,7 +94,9 @@ function itemMatchesPatch(item, patch = {}) {
   const checks = [];
 
   if (patch.titleOriginal !== undefined) {
-    checks.push(normalizeCompare(item.titleOriginal) === normalizeCompare(patch.titleOriginal));
+    checks.push(
+      normalizeCompare(item.titleOriginal) === normalizeCompare(patch.titleOriginal)
+    );
   }
 
   if (patch.summary !== undefined) {
@@ -102,15 +104,28 @@ function itemMatchesPatch(item, patch = {}) {
   }
 
   if (patch.contentText !== undefined) {
-    checks.push(normalizeCompare(item.contentText) === normalizeCompare(patch.contentText));
+    checks.push(
+      normalizeCompare(item.contentText) === normalizeCompare(patch.contentText)
+    );
   }
 
   if (patch.editorNotes !== undefined) {
-    checks.push(normalizeCompare(item.editorNotes) === normalizeCompare(patch.editorNotes));
+    checks.push(
+      normalizeCompare(item.editorNotes) === normalizeCompare(patch.editorNotes)
+    );
   }
 
   if (patch.syncStatus !== undefined) {
-    checks.push(normalizeCompare(item.syncStatus) === normalizeCompare(patch.syncStatus));
+    checks.push(
+      normalizeCompare(item.syncStatus) === normalizeCompare(patch.syncStatus)
+    );
+  }
+
+  if (patch.rejectionReason !== undefined) {
+    checks.push(
+      normalizeCompare(item.rejectionReason) ===
+        normalizeCompare(patch.rejectionReason)
+    );
   }
 
   if (patch.lastSyncAt !== undefined) {
@@ -130,6 +145,10 @@ function mergeItemWithPatch(item, patch = {}) {
       patch.contentText !== undefined ? patch.contentText : item.contentText,
     editorNotes:
       patch.editorNotes !== undefined ? patch.editorNotes : item.editorNotes,
+    rejectionReason:
+      patch.rejectionReason !== undefined
+        ? patch.rejectionReason
+        : item.rejectionReason,
     syncStatus:
       patch.syncStatus !== undefined ? patch.syncStatus : item.syncStatus,
     status: patch.syncStatus !== undefined ? patch.syncStatus : item.status,
@@ -270,11 +289,13 @@ export async function createNews(payload) {
 export async function updateNews(id, payload) {
   const now = new Date().toISOString();
 
-  const fields = toBitrixFields({
+  const patch = {
     ...payload,
     syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: now,
-  });
+  };
+
+  const fields = toBitrixFields(patch);
 
   console.log("[news-service] crm.item.update payload", {
     id: Number(id),
@@ -282,30 +303,22 @@ export async function updateNews(id, payload) {
     fieldsPreview: fields,
   });
 
-  const updateResult = await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
+  await crmItemUpdate(ENTITY_TYPE_ID, id, fields);
 
-  console.log("[news-service] crm.item.update returned", {
-    id: Number(id),
-    updateResult,
+  const fresh = await getNewsByIdFresh(id, patch);
+  const merged = mergeItemWithPatch(fresh, patch);
+
+  console.log("[news-service] updateNews merged result", {
+    id: merged.id,
+    titleOriginal: merged.titleOriginal,
+    summary: merged.summary,
+    contentText: merged.contentText?.slice?.(0, 120) || "",
+    editorNotes: merged.editorNotes,
+    syncStatus: merged.syncStatus,
+    lastSyncAt: merged.lastSyncAt,
   });
 
-  const updated = await getNewsById(id);
-
-  console.log("[news-service] crm.item.get after update", {
-    id: Number(id),
-    updatedSummary: updated.summary,
-    updatedTitle: updated.titleOriginal,
-    updatedContentStart: String(updated.contentText || "").slice(0, 120),
-    updatedSyncStatus: updated.syncStatus,
-    updatedLastSyncAt: updated.lastSyncAt,
-  });
-
-  return {
-    ...updated,
-    syncStatus: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
-    status: updated.syncStatus || BITRIX_APP_CONFIG.STATUS.EDITADA,
-    lastSyncAt: updated.lastSyncAt || now,
-  };
+  return merged;
 }
 
 export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
@@ -319,7 +332,7 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
 
   const fields = toBitrixFields(patch);
 
-  console.log("[news-service] updateNewsStatus", {
+  console.log("[news-service] updateNewsStatus payload", {
     id: Number(id),
     syncStatus,
     rejectionReason,
@@ -331,6 +344,13 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
 
   const fresh = await getNewsByIdFresh(id, patch);
   const merged = mergeItemWithPatch(fresh, patch);
+
+  console.log("[news-service] updateNewsStatus merged result", {
+    id: merged.id,
+    syncStatus: merged.syncStatus,
+    rejectionReason: merged.rejectionReason,
+    lastSyncAt: merged.lastSyncAt,
+  });
 
   return merged;
 }
