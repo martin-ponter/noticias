@@ -13,6 +13,9 @@ export default function NewsToolbar({
   onApprove,
   onReject,
   onRegenerate,
+  generatingWeb = false,
+  generatingLinkedin = false,
+  regenerating = false,
   disabled = false,
 }) {
   const controlsDisabled = !selectedItem || disabled;
@@ -23,28 +26,28 @@ export default function NewsToolbar({
         <button
           type="button"
           onClick={onGenerateWeb}
-          disabled={controlsDisabled}
+          disabled={controlsDisabled || generatingWeb || regenerating}
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Generar noticia web
+          {generatingWeb ? "Generando web..." : "Generar noticia web"}
         </button>
 
         <button
           type="button"
           onClick={onGenerateLinkedin}
-          disabled={controlsDisabled}
+          disabled={controlsDisabled || generatingLinkedin || regenerating}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Generar noticia LinkedIn
+          {generatingLinkedin ? "Generando LinkedIn..." : "Generar noticia LinkedIn"}
         </button>
 
         <button
           type="button"
           onClick={onRegenerate}
-          disabled={controlsDisabled}
+          disabled={controlsDisabled || generatingWeb || generatingLinkedin || regenerating}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Regenerar
+          {regenerating ? "Regenerando..." : "Regenerar"}
         </button>
 
         <button

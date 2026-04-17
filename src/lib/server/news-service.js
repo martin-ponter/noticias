@@ -153,6 +153,22 @@ function itemMatchesPatch(item, patch = {}) {
     );
   }
 
+  if (patch.aiWebStatus !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiWebStatus) === normalizeCompare(patch.aiWebStatus)
+    );
+  }
+
+  if (patch.aiWebError !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiWebError) === normalizeCompare(patch.aiWebError)
+    );
+  }
+
+  if (patch.aiWebGeneratedAt !== undefined) {
+    checks.push(Boolean(item.aiWebGeneratedAt));
+  }
+
   if (patch.aiLinkedinPost !== undefined) {
     checks.push(
       normalizeCompare(item.aiLinkedinPost) ===
@@ -165,6 +181,24 @@ function itemMatchesPatch(item, patch = {}) {
       normalizeCompare(item.aiLinkedinHashtags) ===
         normalizeCompare(patch.aiLinkedinHashtags)
     );
+  }
+
+  if (patch.aiLinkedinStatus !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiLinkedinStatus) ===
+        normalizeCompare(patch.aiLinkedinStatus)
+    );
+  }
+
+  if (patch.aiLinkedinError !== undefined) {
+    checks.push(
+      normalizeCompare(item.aiLinkedinError) ===
+        normalizeCompare(patch.aiLinkedinError)
+    );
+  }
+
+  if (patch.aiLinkedinGeneratedAt !== undefined) {
+    checks.push(Boolean(item.aiLinkedinGeneratedAt));
   }
 
   if (patch.syncStatus !== undefined) {
@@ -203,6 +237,14 @@ function mergeItemWithPatch(item, patch = {}) {
       patch.aiWebExcerpt !== undefined ? patch.aiWebExcerpt : item.aiWebExcerpt,
     aiWebContent:
       patch.aiWebContent !== undefined ? patch.aiWebContent : item.aiWebContent,
+    aiWebStatus:
+      patch.aiWebStatus !== undefined ? patch.aiWebStatus : item.aiWebStatus,
+    aiWebGeneratedAt:
+      patch.aiWebGeneratedAt !== undefined
+        ? patch.aiWebGeneratedAt
+        : item.aiWebGeneratedAt,
+    aiWebError:
+      patch.aiWebError !== undefined ? patch.aiWebError : item.aiWebError,
     aiLinkedinPost:
       patch.aiLinkedinPost !== undefined
         ? patch.aiLinkedinPost
@@ -211,6 +253,18 @@ function mergeItemWithPatch(item, patch = {}) {
       patch.aiLinkedinHashtags !== undefined
         ? patch.aiLinkedinHashtags
         : item.aiLinkedinHashtags,
+    aiLinkedinStatus:
+      patch.aiLinkedinStatus !== undefined
+        ? patch.aiLinkedinStatus
+        : item.aiLinkedinStatus,
+    aiLinkedinGeneratedAt:
+      patch.aiLinkedinGeneratedAt !== undefined
+        ? patch.aiLinkedinGeneratedAt
+        : item.aiLinkedinGeneratedAt,
+    aiLinkedinError:
+      patch.aiLinkedinError !== undefined
+        ? patch.aiLinkedinError
+        : item.aiLinkedinError,
     rejectionReason:
       patch.rejectionReason !== undefined
         ? patch.rejectionReason
@@ -392,7 +446,9 @@ export async function updateNews(id, payload) {
     contentText: merged.contentText?.slice?.(0, 120) || "",
     editorNotes: merged.editorNotes,
     aiWebTitle: merged.aiWebTitle,
+    aiWebStatus: merged.aiWebStatus,
     aiLinkedinPost: merged.aiLinkedinPost,
+    aiLinkedinStatus: merged.aiLinkedinStatus,
     syncStatus: merged.syncStatus,
     lastSyncAt: merged.lastSyncAt,
   });

@@ -10,6 +10,7 @@ import { getCurrentBitrixUserRaw, normalizeBitrixUser } from "../../lib/bitrix/u
 import NewsSidebar from "./NewsSidebar";
 import NewsToolbar from "./NewsToolbar";
 import NewsDetail from "./NewsDetail";
+import RegenerateNewsModal from "./RegenerateNewsModal";
 
 const DETAIL_VIEWS = {
   ORIGINAL: "original",
@@ -128,6 +129,12 @@ export default function NewsApp() {
   const [actionLoading, setActionLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [selectedView, setSelectedView] = useState(DETAIL_VIEWS.ORIGINAL);
+  const [generateLoading, setGenerateLoading] = useState({
+    web: false,
+    linkedin: false,
+    regenerate: false,
+  });
+  const [regenerateModalOpen, setRegenerateModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("");
@@ -279,6 +286,17 @@ export default function NewsApp() {
     [filteredItems, selectedId]
   );
 
+  function applyUpdatedItem(updatedItem) {
+    setItems((prev) =>
+      sortItems(
+        prev.map((item) =>
+          Number(item.id) === Number(updatedItem.id) ? updatedItem : item
+        )
+      )
+    );
+    setSelectedId(updatedItem.id);
+  }
+
   async function updateSelectedStatus(nextStatus, rejectionReason = "") {
     if (!selectedItem || actionLoading) return;
 
@@ -332,15 +350,7 @@ export default function NewsApp() {
       });
 
       const updatedItem = mergeSavedFields(selectedItem, payload.item, fields);
-
-      setItems((prev) =>
-        sortItems(
-          prev.map((item) =>
-            Number(item.id) === Number(updatedItem.id) ? updatedItem : item
-          )
-        )
-      );
-      setSelectedId(updatedItem.id);
+      applyUpdatedItem(updatedItem);
     } catch (err) {
       setError(err?.message || "No se pudieron guardar los cambios");
     } finally {
@@ -348,18 +358,106 @@ export default function NewsApp() {
     }
   }
 
-  function handleGenerateWeb() {
-    setSelectedView(DETAIL_VIEWS.WEB);
-    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
+  async function runGeneration(channels, prompts = {}) {
+    if (!selectedItem || channels.length === 0) return null;
+
+    const payload = await fetchJson("/api/news/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        id: selectedItem.id,
+        channels,
+        prompts,
+      }),
+    });
+
+    applyUpdatedItem(payload.item);
+
+    if (channels.length === 1) {
+      if (channels[0] === "web") {
+        setSelectedView(DETAIL_VIEWS.WEB);
+      }
+
+      if (channels[0] === "linkedin") {
+        setSelectedView(DETAIL_VIEWS.LINKEDIN);
+      }
+    }
+
+    if (payload.hasErrors) {
+      setError(payload.errorSummary || "La generación IA devolvió errores");
+    } else {
+      setError("");
+    }
+
+    return payload;
   }
 
-  function handleGenerateLinkedin() {
-    setSelectedView(DETAIL_VIEWS.LINKEDIN);
-    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
+  async function handleGenerateWeb() {
+    if (!selectedItem || generateLoading.web || generateLoading.regenerate) return;
+
+    setGenerateLoading((prev) => ({
+      ...prev,
+      web: true,
+    }));
+    setError("");
+
+    try {
+      await runGeneration(["web"]);
+    } catch (err) {
+      setError(err?.message || "No se pudo generar la noticia web");
+    } finally {
+      setGenerateLoading((prev) => ({
+        ...prev,
+        web: false,
+      }));
+    }
+  }
+
+  async function handleGenerateLinkedin() {
+    if (!selectedItem || generateLoading.linkedin || generateLoading.regenerate) return;
+
+    setGenerateLoading((prev) => ({
+      ...prev,
+      linkedin: true,
+    }));
+    setError("");
+
+    try {
+      await runGeneration(["linkedin"]);
+    } catch (err) {
+      setError(err?.message || "No se pudo generar la noticia LinkedIn");
+    } finally {
+      setGenerateLoading((prev) => ({
+        ...prev,
+        linkedin: false,
+      }));
+    }
   }
 
   function handleRegenerate() {
-    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.GENERANDO);
+    if (!selectedItem || generateLoading.web || generateLoading.linkedin) return;
+    setRegenerateModalOpen(true);
+  }
+
+  async function handleRegenerateSubmit({ channels, prompts }) {
+    if (!selectedItem || generateLoading.regenerate) return;
+
+    setGenerateLoading((prev) => ({
+      ...prev,
+      regenerate: true,
+    }));
+    setError("");
+
+    try {
+      await runGeneration(channels, prompts);
+      setRegenerateModalOpen(false);
+    } catch (err) {
+      setError(err?.message || "No se pudo regenerar el contenido IA");
+    } finally {
+      setGenerateLoading((prev) => ({
+        ...prev,
+        regenerate: false,
+      }));
+    }
   }
 
   function handleApprove() {
@@ -460,19 +558,39 @@ export default function NewsApp() {
               onRegenerate={handleRegenerate}
               onApprove={handleApprove}
               onReject={handleReject}
-              disabled={actionLoading || newsLoading || saveLoading}
+              generatingWeb={generateLoading.web}
+              generatingLinkedin={generateLoading.linkedin}
+              regenerating={generateLoading.regenerate}
+              disabled={
+                actionLoading ||
+                newsLoading ||
+                saveLoading ||
+                generateLoading.web ||
+                generateLoading.linkedin ||
+                generateLoading.regenerate
+              }
             />
 
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
               <NewsDetail
-              item={selectedItem}
-              loading={newsLoading}
-              error={error}
-              isEmpty={!newsLoading && !error && filteredItems.length === 0}
-              selectedView={selectedView}
-              onSave={handleSaveNewsFields}
-              saving={saveLoading}
-            />
+                item={selectedItem}
+                loading={newsLoading}
+                error={error}
+                isEmpty={!newsLoading && !error && filteredItems.length === 0}
+                selectedView={selectedView}
+                onSave={handleSaveNewsFields}
+                saving={saveLoading}
+              />
+
+              <RegenerateNewsModal
+                open={regenerateModalOpen}
+                loading={generateLoading.regenerate}
+                onClose={() => {
+                  if (generateLoading.regenerate) return;
+                  setRegenerateModalOpen(false);
+                }}
+                onSubmit={handleRegenerateSubmit}
+              />
             </div>
           </main>
         </div>
