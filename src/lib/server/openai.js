@@ -25,6 +25,7 @@ function buildOpenAIInput(prompt, item, options = {}) {
     typeof options.contextBuilder === "function"
       ? options.contextBuilder
       : buildSourceContext;
+
   const context = contextBuilder(item);
 
   return [
@@ -42,7 +43,7 @@ function parseJsonResponse(rawText) {
   const trimmed = String(rawText || "").trim();
 
   if (!trimmed) {
-    throw new Error("OpenAI devolvi\u00f3 una respuesta vac\u00eda");
+    throw new Error("OpenAI devolvió una respuesta vacía");
   }
 
   attempts.push(trimmed);
@@ -70,7 +71,7 @@ function parseJsonResponse(rawText) {
     try {
       return JSON.parse(candidate);
     } catch {
-      // seguir
+      // probar siguiente candidato
     }
   }
 
@@ -79,7 +80,7 @@ function parseJsonResponse(rawText) {
 
 function assertPlainObject(value, contextLabel) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`OpenAI devolvi\u00f3 un payload inv\u00e1lido para ${contextLabel}`);
+    throw new Error(`OpenAI devolvió un payload inválido para ${contextLabel}`);
   }
 
   return value;
@@ -94,7 +95,7 @@ function requireNonEmptyString(value, fieldLabel, contextLabel) {
 
   if (!normalized) {
     throw new Error(
-      `OpenAI no devolvi\u00f3 un valor v\u00e1lido para "${fieldLabel}" en ${contextLabel}`
+      `OpenAI no devolvió un valor válido para "${fieldLabel}" en ${contextLabel}`
     );
   }
 
@@ -121,8 +122,116 @@ function validateLinkedinPayload(payload) {
   };
 }
 
+function pushCandidate(bucket, value) {
+  const text = String(value || "").trim();
+  if (text && !bucket.includes(text)) {
+    bucket.push(text);
+  }
+}
+
+function collectTextFromNode(node, bucket) {
+  if (!node) return;
+
+  if (typeof node === "string") {
+    pushCandidate(bucket, node);
+    return;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectTextFromNode(item, bucket);
+    }
+    return;
+  }
+
+  if (typeof node !== "object") {
+    return;
+  }
+
+  // Casos comunes del SDK / Responses API
+  if (typeof node.output_text === "string") {
+    pushCandidate(bucket, node.output_text);
+  }
+
+  if (typeof node.text === "string") {
+    pushCandidate(bucket, node.text);
+  }
+
+  if (typeof node.content === "string") {
+    pushCandidate(bucket, node.content);
+  }
+
+  // Explorar estructuras anidadas habituales
+  if (Array.isArray(node.output)) {
+    collectTextFromNode(node.output, bucket);
+  }
+
+  if (Array.isArray(node.content)) {
+    collectTextFromNode(node.content, bucket);
+  }
+
+  if (Array.isArray(node.contents)) {
+    collectTextFromNode(node.contents, bucket);
+  }
+
+  if (node.type === "output_text" && typeof node.text === "string") {
+    pushCandidate(bucket, node.text);
+  }
+
+  if (node.type === "text" && typeof node.text === "string") {
+    pushCandidate(bucket, node.text);
+  }
+
+  if (node.type === "message" && Array.isArray(node.content)) {
+    collectTextFromNode(node.content, bucket);
+  }
+}
+
+function extractResponseText(response) {
+  const candidates = [];
+
+  // helper oficial del SDK
+  pushCandidate(candidates, response?.output_text);
+
+  // fallback robusto recorriendo output
+  collectTextFromNode(response?.output, candidates);
+
+  return candidates.join("\n\n").trim();
+}
+
+function summarizeResponse(response) {
+  const output = Array.isArray(response?.output) ? response.output : [];
+
+  return {
+    id: response?.id || null,
+    model: response?.model || null,
+    status: response?.status || null,
+    outputCount: output.length,
+    outputTypes: output.map((item) => item?.type || "unknown"),
+    incompleteDetails: response?.incomplete_details || null,
+    usage: response?.usage
+      ? {
+          input_tokens: response.usage.input_tokens ?? null,
+          output_tokens: response.usage.output_tokens ?? null,
+          total_tokens: response.usage.total_tokens ?? null,
+        }
+      : null,
+  };
+}
+
+function isRetriableExtractionError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    message.includes("no devolvió texto") ||
+    message.includes("respuesta vacía") ||
+    message.includes("no se pudo parsear")
+  );
+}
+
 async function requestOpenAIJson(prompt, item, options = {}) {
   const client = getOpenAIClient();
+
   const requestPayload = {
     model: getOpenAIModel(),
     input: buildOpenAIInput(prompt, item, options),
@@ -132,15 +241,46 @@ async function requestOpenAIJson(prompt, item, options = {}) {
     requestPayload.max_output_tokens = Number(options.maxOutputTokens);
   }
 
-  const response = await client.responses.create(requestPayload);
+  let lastError = null;
 
-  const rawText = String(response.output_text || "").trim();
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const response = await client.responses.create(requestPayload);
+      const rawText = extractResponseText(response);
 
-  if (!rawText) {
-    throw new Error("OpenAI no devolvi\u00f3 texto en la respuesta");
+      if (!rawText) {
+        console.warn("[openai] respuesta sin texto utilizable", {
+          attempt,
+          summary: summarizeResponse(response),
+        });
+        throw new Error("OpenAI no devolvió texto utilizable en la respuesta");
+      }
+
+      try {
+        return parseJsonResponse(rawText);
+      } catch (parseError) {
+        console.warn("[openai] no se pudo parsear JSON", {
+          attempt,
+          summary: summarizeResponse(response),
+          rawTextPreview: rawText.slice(0, 1200),
+        });
+        throw parseError;
+      }
+    } catch (error) {
+      lastError = error;
+
+      if (attempt >= 2 || !isRetriableExtractionError(error)) {
+        break;
+      }
+
+      console.warn("[openai] reintentando petición por respuesta incompleta", {
+        attempt,
+        reason: error?.message || "unknown",
+      });
+    }
   }
 
-  return parseJsonResponse(rawText);
+  throw lastError || new Error("No se pudo obtener una respuesta válida de OpenAI");
 }
 
 async function generateWebContent(item, promptOverride = "") {
