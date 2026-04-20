@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isUploadedToWordPress } from "../../lib/news/wordpressUpload.js";
 
 const ALLOWED_MANUAL_IMAGE_TYPES = [
   "image/jpeg",
@@ -113,8 +114,7 @@ export default function ApprovePublishModal({
 
   const linkedinPost = normalizeValue(item?.aiLinkedinPost);
   const linkedinHashtags = normalizeValue(item?.aiLinkedinHashtags);
-  const alreadyUploadedToWordPress =
-    normalizeValue(item?.syncStatus || item?.status).toLowerCase() === "subida";
+  const alreadyUploadedToWordPress = isUploadedToWordPress(item);
 
   const [mode, setMode] = useState(MODES.WEB);
   const [contentSource, setContentSource] = useState(hasAiContent ? "ai" : "original");
@@ -133,7 +133,7 @@ export default function ApprovePublishModal({
   useEffect(() => {
     if (!open) return;
 
-    setMode(MODES.WEB);
+    setMode(alreadyUploadedToWordPress ? MODES.LINKEDIN : MODES.WEB);
     setContentSource(hasAiContent ? "ai" : "original");
     setImageSource(hasOriginalImage ? "original" : "none");
     setManualImageFile(null);
@@ -146,7 +146,7 @@ export default function ApprovePublishModal({
       complete: false,
       prompt: false,
     });
-  }, [open, hasAiContent, hasOriginalImage, item?.id]);
+  }, [open, hasAiContent, hasOriginalImage, item?.id, alreadyUploadedToWordPress]);
 
   useEffect(() => {
     if (!open) return;
@@ -383,9 +383,7 @@ export default function ApprovePublishModal({
           {contentSource === "original" ? (
             <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-900">
-                Estas seguro de que quieres subir el contenido original? Podria
-                contener publicidad, referencias a otras webs o contenido no adaptado a
-                Ponter.
+                {"\u00bfEstas seguro de que quieres subir el contenido original? Podria contener publicidad, referencias a otras webs o contenido no adaptado a Ponter."}
               </p>
               <label className="mt-3 flex items-start gap-3 text-sm text-amber-900">
                 <input
@@ -511,7 +509,7 @@ export default function ApprovePublishModal({
 
         <SectionCard title="Prompt Gemini" tone="subtle">
           <p className="text-sm text-slate-600">
-            No tienes imagen? Puedes generar una con Gemini usando este prompt:
+            {"\u00bfNo tienes imagen? Puedes generar una con Gemini usando este prompt:"}
           </p>
           <textarea
             readOnly
@@ -596,15 +594,6 @@ export default function ApprovePublishModal({
                 >
                   Abrir imagen
                 </a>
-                <a
-                  href={item.featuredImageUrl}
-                  download
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Descargar imagen
-                </a>
               </div>
             </>
           ) : (
@@ -669,7 +658,7 @@ export default function ApprovePublishModal({
               aria-label="Cerrar modal"
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              ×
+              {"\u00d7"}
             </button>
           </div>
         </div>
@@ -696,8 +685,8 @@ export default function ApprovePublishModal({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
                 {alreadyUploadedToWordPress
-                  ? "Esta noticia ya fue enviada a WordPress. LinkedIn sigue disponible en la otra pestaña."
-                  : "La noticia se creara en WordPress como borrador."}
+                  ? "Esta noticia ya fue enviada a WordPress. LinkedIn sigue disponible en la otra pesta\u00f1a."
+                  : "La noticia se crear\u00e1 en WordPress como borrador."}
               </p>
 
               <div className="flex items-center gap-3">

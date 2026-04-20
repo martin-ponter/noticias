@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { BITRIX_APP_CONFIG } from "../../../config/bitrixConfig";
+import { isUploadedToWordPress } from "../../../lib/news/wordpressUpload.js";
 import {
   applyNewsPatch,
   getNewsById,
@@ -50,7 +51,7 @@ function buildWordPressPayload(item: any, contentSource: string) {
     };
   }
 
-  throw new Error("contentSource no válido");
+  throw new Error("contentSource no v\u00e1lido");
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -80,13 +81,13 @@ export const POST: APIRoute = async ({ request }) => {
         manualImage instanceof File && Number(manualImage.size || 0) > 0;
 
       if (!isValidFile) {
-        return badRequest("Debes adjuntar una imagen manual válida");
+        return badRequest("Debes adjuntar una imagen manual v\u00e1lida");
       }
     }
 
     const item = await getNewsById(id);
 
-    if (String(item?.syncStatus || item?.status || "").trim() === BITRIX_APP_CONFIG.STATUS.SUBIDA) {
+    if (isUploadedToWordPress(item)) {
       return badRequest("Esta noticia ya ha sido subida a WordPress");
     }
 
@@ -100,7 +101,7 @@ export const POST: APIRoute = async ({ request }) => {
       const file = manualImage instanceof File ? manualImage : null;
 
       if (!file || Number(file.size || 0) <= 0) {
-        return badRequest("No se recibió una imagen manual válida");
+        return badRequest("No se recibi\u00f3 una imagen manual v\u00e1lida");
       }
 
       if (!ALLOWED_MANUAL_IMAGE_TYPES.includes(file.type)) {

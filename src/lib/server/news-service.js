@@ -1,4 +1,5 @@
 import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig";
+import { isUploadedToWordPress } from "../news/wordpressUpload.js";
 import {
   crmItemAdd,
   crmItemGet,
@@ -419,10 +420,13 @@ export async function createNews(payload) {
 
 export async function updateNews(id, payload) {
   const now = new Date().toISOString();
+  const currentItem = await getNewsById(id);
 
   const patch = {
     ...payload,
-    syncStatus: BITRIX_APP_CONFIG.STATUS.EDITADA,
+    syncStatus: isUploadedToWordPress(currentItem)
+      ? currentItem.syncStatus || BITRIX_APP_CONFIG.STATUS.SUBIDA
+      : BITRIX_APP_CONFIG.STATUS.EDITADA,
     lastSyncAt: now,
   };
 

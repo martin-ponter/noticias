@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
 import {
+  buildLinkedinSourceContext,
   DEFAULT_LINKEDIN_PROMPT,
   DEFAULT_WEB_PROMPT,
   buildSourceContext,
@@ -19,8 +20,12 @@ function getOpenAIModel() {
   return String(process.env.OPENAI_MODEL || "").trim() || DEFAULT_OPENAI_MODEL;
 }
 
-function buildOpenAIInput(prompt, item) {
-  const context = buildSourceContext(item);
+function buildOpenAIInput(prompt, item, options = {}) {
+  const contextBuilder =
+    typeof options.contextBuilder === "function"
+      ? options.contextBuilder
+      : buildSourceContext;
+  const context = contextBuilder(item);
 
   return [
     prompt,
@@ -37,7 +42,7 @@ function parseJsonResponse(rawText) {
   const trimmed = String(rawText || "").trim();
 
   if (!trimmed) {
-    throw new Error("OpenAI devolvió una respuesta vacía");
+    throw new Error("OpenAI devolvi\u00f3 una respuesta vac\u00eda");
   }
 
   attempts.push(trimmed);
@@ -74,7 +79,7 @@ function parseJsonResponse(rawText) {
 
 function assertPlainObject(value, contextLabel) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`OpenAI devolvió un payload inválido para ${contextLabel}`);
+    throw new Error(`OpenAI devolvi\u00f3 un payload inv\u00e1lido para ${contextLabel}`);
   }
 
   return value;
@@ -89,7 +94,7 @@ function requireNonEmptyString(value, fieldLabel, contextLabel) {
 
   if (!normalized) {
     throw new Error(
-      `OpenAI no devolvió un valor válido para "${fieldLabel}" en ${contextLabel}`
+      `OpenAI no devolvi\u00f3 un valor v\u00e1lido para "${fieldLabel}" en ${contextLabel}`
     );
   }
 
@@ -116,18 +121,23 @@ function validateLinkedinPayload(payload) {
   };
 }
 
-async function requestOpenAIJson(prompt, item) {
+async function requestOpenAIJson(prompt, item, options = {}) {
   const client = getOpenAIClient();
-
-  const response = await client.responses.create({
+  const requestPayload = {
     model: getOpenAIModel(),
-    input: buildOpenAIInput(prompt, item),
-  });
+    input: buildOpenAIInput(prompt, item, options),
+  };
+
+  if (Number(options.maxOutputTokens) > 0) {
+    requestPayload.max_output_tokens = Number(options.maxOutputTokens);
+  }
+
+  const response = await client.responses.create(requestPayload);
 
   const rawText = String(response.output_text || "").trim();
 
   if (!rawText) {
-    throw new Error("OpenAI no devolvió texto en la respuesta");
+    throw new Error("OpenAI no devolvi\u00f3 texto en la respuesta");
   }
 
   return parseJsonResponse(rawText);
@@ -141,7 +151,10 @@ async function generateWebContent(item, promptOverride = "") {
 
 async function generateLinkedinContent(item, promptOverride = "") {
   const prompt = String(promptOverride || "").trim() || DEFAULT_LINKEDIN_PROMPT;
-  const payload = await requestOpenAIJson(prompt, item);
+  const payload = await requestOpenAIJson(prompt, item, {
+    contextBuilder: buildLinkedinSourceContext,
+    maxOutputTokens: 500,
+  });
   return validateLinkedinPayload(payload);
 }
 

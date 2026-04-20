@@ -63,48 +63,22 @@ Devuelve solo JSON valido, sin markdown ni texto adicional, con esta estructura 
 `.trim();
 
 export const DEFAULT_LINKEDIN_PROMPT = `
-Eres un redactor profesional en espanol de Espana especializado en contenidos corporativos de LinkedIn para Ponter.
+Eres un redactor profesional en espanol de Espana para LinkedIn de Ponter.
 
-Tu tarea es transformar una noticia original scrapeada en una publicacion de LinkedIn pensada para generar interes, interaccion y engagement, alineada con la marca Ponter.
-
-Objetivo editorial:
-- Convertir la informacion relevante en un post atractivo, claro y facil de leer.
-- Reenfocar el contenido para que encaje con la comunicacion de Ponter.
-- Hacer que el post invite a leer, comentar o compartir.
-- Incluir una llamada final natural hacia la web de Ponter: ponter.es
+Transforma la noticia en un post breve, claro y con enfoque corporativo.
 
 Instrucciones obligatorias:
-- Elimina cualquier referencia promocional, publicitaria o corporativa de la fuente original.
-- Elimina cualquier mencion a Traspaso Dental, Fiscal Clinic o cualquier otra empresa scrapeada, salvo que sea imprescindible como dato informativo.
-- Elimina nombres de CEO, fundadores, portavoces, directivos y cualquier cita atribuida a esas empresas.
-- Elimina slogans, claims, mensajes de marca de terceros y cualquier tono de autobombo ajeno a Ponter.
-- No incluyas frases de portavoz ni declaraciones corporativas de la fuente.
-- No redirijas al lector a la web original ni cites la fuente como marca protagonista.
-- No inventes datos no presentes en el contexto.
-- Si faltan datos, redacta con prudencia y naturalidad.
-- El post debe tener un enfoque comercial alineado con Ponter, pero sin sonar artificial ni demasiado vendedor.
-- El cierre debe reforzar la presencia de Ponter e incluir una mencion natural a ponter.es
-
-Requisitos del post:
-- Gancho inicial potente en la primera linea.
-- Tono profesional, cercano y natural.
-- Mensaje claro, dinamico y facil de consumir en LinkedIn.
-- Debe generar engagement: curiosidad, reflexion o interes profesional.
-- Estructura visual comoda de leer, con saltos de linea si ayudan.
-- Anade hashtags relevantes al final.
-- Evita que el texto suene robotico o generico.
-
-Formato de salida:
-- post: texto final del post de LinkedIn
-- hashtags: cadena con hashtags listos para usar
-
-Reglas de estilo:
-- Espanol de Espana.
+- Manten solo la informacion relevante.
+- Elimina publicidad, slogans, citas y branding de terceros.
+- No menciones la fuente como protagonista ni enlaces a otras webs.
+- No inventes datos.
+- Tono profesional, cercano y natural, alineado con Ponter.
+- Incluye una mencion natural a ponter.es al final.
+- Busca engagement con un gancho inicial y un cierre util.
+- Longitud orientativa del post: 700 a 1100 caracteres como maximo aproximado.
+- Hashtags: entre 3 y 6, relevantes y listos para pegar.
 - No uses markdown.
-- No uses comillas para simular citas si no son imprescindibles.
-- No menciones que el contenido ha sido reescrito.
-- No pongas emojis salvo que encajen de forma muy moderada y profesional.
-- Incluye una referencia natural a ponter.es dentro del post, preferiblemente al final como cierre o llamada a la accion.
+- No hagas un texto kilometrico ni demasiado vendedor.
 
 Devuelve solo JSON valido, sin markdown ni texto adicional, con esta estructura exacta:
 {
@@ -119,6 +93,30 @@ export function buildSourceContext(item = {}) {
     ["Resumen", item.summary],
     ["Contenido principal", item.contentText || item.summary || item.titleOriginal],
     ["Notas del editor", item.editorNotes],
+  ]
+    .filter(([, value]) => String(value || "").trim())
+    .map(([label, value]) => `${label}:\n${String(value).trim()}`);
+
+  return sections.join("\n\n");
+}
+
+function truncateText(value, maxLength) {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+
+  if (!normalized || normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trim()}...`;
+}
+
+export function buildLinkedinSourceContext(item = {}) {
+  const sections = [
+    ["Titulo original", item.titleOriginal],
+    ["Resumen", item.summary],
+    ["Titulo web IA", item.aiWebTitle],
+    ["Notas del editor", item.editorNotes],
+    ["Contenido clave", truncateText(item.contentText || item.summary || "", 1200)],
   ]
     .filter(([, value]) => String(value || "").trim())
     .map(([label, value]) => `${label}:\n${String(value).trim()}`);
