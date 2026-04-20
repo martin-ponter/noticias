@@ -16,9 +16,13 @@ export default function NewsToolbar({
   generatingWeb = false,
   generatingLinkedin = false,
   regenerating = false,
+  publishing = false,
   disabled = false,
 }) {
+  const itemStatus = String(selectedItem?.syncStatus || selectedItem?.status || "").trim();
+  const alreadyUploaded = itemStatus === "Subida";
   const controlsDisabled = !selectedItem || disabled;
+  const approveDisabled = controlsDisabled || alreadyUploaded;
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4">
@@ -53,10 +57,17 @@ export default function NewsToolbar({
         <button
           type="button"
           onClick={onApprove}
-          disabled={controlsDisabled}
-          className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={approveDisabled}
+          title={
+            alreadyUploaded ? "Esta noticia ya ha sido subida a WordPress" : undefined
+          }
+          className={`rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            alreadyUploaded
+              ? "border border-slate-300 bg-slate-100 text-slate-500"
+              : "border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          }`}
         >
-          Aprobar
+          {alreadyUploaded ? "Ya subida" : publishing ? "Subiendo..." : "Aprobar"}
         </button>
 
         <button

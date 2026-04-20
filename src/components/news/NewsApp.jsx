@@ -11,6 +11,7 @@ import NewsSidebar from "./NewsSidebar";
 import NewsToolbar from "./NewsToolbar";
 import NewsDetail from "./NewsDetail";
 import RegenerateNewsModal from "./RegenerateNewsModal";
+import ApprovePublishModal from "./ApprovePublishModal";
 
 const DETAIL_VIEWS = {
   ORIGINAL: "original",
@@ -19,18 +20,24 @@ const DETAIL_VIEWS = {
 };
 
 async function fetchJson(url, init) {
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers: isFormData
+      ? init?.headers || {}
+      : {
+          "Content-Type": "application/json",
+          ...(init?.headers || {}),
+        },
     ...init,
   });
 
   const payload = await response.json().catch(() => null);
 
   if (!response.ok || !payload?.ok) {
-    throw new Error(payload?.error || "No se pudo completar la solicitud");
+    const error = new Error(payload?.error || "No se pudo completar la solicitud");
+    error.payload = payload;
+    throw error;
   }
 
   return payload;
@@ -42,6 +49,11 @@ function sortItems(items = []) {
 
 function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function isUploadedItem(item) {
+  const status = String(item?.syncStatus || item?.status || "").trim().toLowerCase();
+  return status === "subida";
 }
 
 function matchesSearch(item, query) {
@@ -135,6 +147,9 @@ export default function NewsApp() {
     regenerate: false,
   });
   const [regenerateModalOpen, setRegenerateModalOpen] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("");
@@ -358,6 +373,14 @@ export default function NewsApp() {
     }
   }
 
+  async function refreshSelectedItem(id = selectedItem?.id) {
+    if (!id) return null;
+
+    const payload = await fetchJson(`/api/news/get?id=${encodeURIComponent(id)}`);
+    applyUpdatedItem(payload.item);
+    return payload.item;
+  }
+
   async function runGeneration(channels, prompts = {}) {
     if (!selectedItem || channels.length === 0) return null;
 
@@ -461,7 +484,11 @@ export default function NewsApp() {
   }
 
   function handleApprove() {
-    return updateSelectedStatus(BITRIX_APP_CONFIG.STATUS.APROBADA);
+    if (!selectedItem || actionLoading || publishLoading || isUploadedItem(selectedItem)) {
+      return;
+    }
+    setPublishError("");
+    setApproveModalOpen(true);
   }
 
   function handleReject() {
@@ -469,6 +496,51 @@ export default function NewsApp() {
       BITRIX_APP_CONFIG.STATUS.RECHAZADA,
       "Marcada manualmente como rechazada por el editor."
     );
+  }
+
+  async function handlePublishSubmit({ contentSource, imageSource, manualImageFile }) {
+    if (!selectedItem || publishLoading) return;
+
+    setPublishLoading(true);
+    setPublishError("");
+    setError("");
+
+    const formData = new FormData();
+    formData.append("id", String(selectedItem.id));
+    formData.append("contentSource", contentSource);
+    formData.append("imageSource", imageSource);
+
+    if (imageSource === "manual" && manualImageFile) {
+      formData.append("manualImage", manualImageFile);
+    }
+
+    try {
+      const payload = await fetchJson("/api/news/publish-wordpress", {
+        method: "POST",
+        body: formData,
+      });
+
+      applyUpdatedItem(payload.item);
+      setApproveModalOpen(false);
+    } catch (err) {
+      const backendItem = err?.payload?.item;
+
+      if (backendItem) {
+        applyUpdatedItem(backendItem);
+      } else {
+        try {
+          await refreshSelectedItem(selectedItem.id);
+        } catch (refreshError) {
+          console.warn("No se pudo refrescar la noticia tras un error de publicación", refreshError);
+        }
+      }
+
+      const message =
+        err?.message || "No se pudo subir la noticia seleccionada a WordPress";
+      setPublishError(message);
+    } finally {
+      setPublishLoading(false);
+    }
   }
 
   if (contextState === BITRIX_CONTEXT_STATES.CHECKING) {
@@ -561,10 +633,12 @@ export default function NewsApp() {
               generatingWeb={generateLoading.web}
               generatingLinkedin={generateLoading.linkedin}
               regenerating={generateLoading.regenerate}
+              publishing={publishLoading}
               disabled={
                 actionLoading ||
                 newsLoading ||
                 saveLoading ||
+                publishLoading ||
                 generateLoading.web ||
                 generateLoading.linkedin ||
                 generateLoading.regenerate
@@ -590,6 +664,19 @@ export default function NewsApp() {
                   setRegenerateModalOpen(false);
                 }}
                 onSubmit={handleRegenerateSubmit}
+              />
+
+              <ApprovePublishModal
+                open={approveModalOpen}
+                item={selectedItem}
+                loading={publishLoading}
+                error={publishError}
+                onClose={() => {
+                  if (publishLoading) return;
+                  setApproveModalOpen(false);
+                  setPublishError("");
+                }}
+                onSubmit={handlePublishSubmit}
               />
             </div>
           </main>

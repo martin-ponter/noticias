@@ -456,21 +456,11 @@ export async function updateNews(id, payload) {
   return merged;
 }
 
-export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
-  const now = new Date().toISOString();
-
-  const patch = {
-    syncStatus,
-    rejectionReason,
-    lastSyncAt: now,
-  };
-
+export async function applyNewsPatch(id, patch = {}) {
   const fields = toBitrixFields(patch);
 
-  console.log("[news-service] updateNewsStatus payload", {
+  console.log("[news-service] applyNewsPatch payload", {
     id: Number(id),
-    syncStatus,
-    rejectionReason,
     fieldKeys: Object.keys(fields),
     fieldsPreview: fields,
   });
@@ -480,12 +470,24 @@ export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
   const fresh = await getNewsByIdFresh(id, patch);
   const merged = mergeItemWithPatch(fresh, patch);
 
-  console.log("[news-service] updateNewsStatus merged result", {
+  console.log("[news-service] applyNewsPatch merged result", {
     id: merged.id,
     syncStatus: merged.syncStatus,
     rejectionReason: merged.rejectionReason,
     lastSyncAt: merged.lastSyncAt,
+    finalPublicationUrl: merged.finalPublicationUrl,
+    uploadedAt: merged.uploadedAt,
   });
 
   return merged;
+}
+
+export async function updateNewsStatus(id, syncStatus, rejectionReason = "") {
+  const now = new Date().toISOString();
+
+  return applyNewsPatch(id, {
+    syncStatus,
+    rejectionReason,
+    lastSyncAt: now,
+  });
 }
