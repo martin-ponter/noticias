@@ -59,7 +59,7 @@ async function fetchWordPress(path, init = {}) {
 
   if (!response.ok) {
     const details = await parseWordPressError(response);
-    throw new Error(`WordPress devolvi\u00f3 ${response.status}: ${details}`);
+    throw new Error(`WordPress devolvió ${response.status}: ${details}`);
   }
 
   return response;
@@ -124,7 +124,10 @@ function sanitizeAllowedHtml(html) {
 }
 
 function stripHtml(value) {
-  return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function normalizeWordPressContent(content, contentSource = "ai") {
@@ -132,7 +135,7 @@ export function normalizeWordPressContent(content, contentSource = "ai") {
   const rawContent = String(content || "").trim();
 
   if (!rawContent) {
-    throw new Error("El contenido est\u00e1 vac\u00edo y no se puede subir a WordPress");
+    throw new Error("El contenido está vacío y no se puede subir a WordPress");
   }
 
   const hasHtmlTags = /<[^>]+>/.test(rawContent);
@@ -145,11 +148,15 @@ export function normalizeWordPressContent(content, contentSource = "ai") {
   const plainText = stripHtml(sanitized);
 
   if (plainText.length < 80) {
-    throw new Error("El contenido es demasiado corto o no tiene estructura suficiente para WordPress");
+    throw new Error(
+      "El contenido es demasiado corto o no tiene estructura suficiente para WordPress"
+    );
   }
 
   if (normalizedSource === "ai" && !/<h2>/i.test(sanitized)) {
-    throw new Error("El contenido IA web debe incluir subt\u00edtulos H2 antes de subirlo a WordPress");
+    throw new Error(
+      "El contenido IA web debe incluir subtítulos H2 antes de subirlo a WordPress"
+    );
   }
 
   return sanitized;
@@ -174,8 +181,9 @@ async function findCategoryByName() {
   }
 
   return (
-    categories.find((category) => String(category?.name || "").trim() === PONTER_CLINIC_NAME) ||
-    null
+    categories.find(
+      (category) => String(category?.name || "").trim() === PONTER_CLINIC_NAME
+    ) || null
   );
 }
 
@@ -196,7 +204,7 @@ export async function getPonterClinicCategoryId() {
     return cachedPonterClinicCategoryId;
   }
 
-  throw new Error('No se encontr\u00f3 la categor\u00eda "Ponter Clinic" en WordPress');
+  throw new Error('No se encontró la categoría "Ponter Clinic" en WordPress');
 }
 
 async function uploadMediaBuffer(buffer, { filename, contentType, altText = "" }) {
@@ -256,7 +264,7 @@ export async function uploadMediaFromUrl(imageUrl, options = {}) {
 
 export async function uploadMediaFromFile(file, options = {}) {
   if (!(file instanceof File) || Number(file.size || 0) <= 0) {
-    throw new Error("No se recibi\u00f3 una imagen manual v\u00e1lida");
+    throw new Error("No se recibió una imagen manual válida");
   }
 
   if (!ALLOWED_MANUAL_IMAGE_TYPES.includes(file.type)) {
@@ -285,13 +293,12 @@ export async function createDraftPost(payload) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-  title: payload.title,
-  excerpt: payload.excerpt || "",
-  content: payload.content,
-  status: "draft",
-  categories: [categoryId],
-  ...(payload.featuredMediaId ? { featured_media: payload.featuredMediaId } : {}),
-}),
+      title: payload.title,
+      content: payload.content,
+      status: "draft",
+      categories: [categoryId],
+      ...(payload.featuredMediaId ? { featured_media: payload.featuredMediaId } : {}),
+    }),
   });
 
   return await response.json();
@@ -299,7 +306,6 @@ export async function createDraftPost(payload) {
 
 export async function publishNewsToWordPress({
   title,
-  excerpt,
   content,
   contentSource = "ai",
   originalImageUrl,
@@ -320,7 +326,7 @@ export async function publishNewsToWordPress({
 
   if (imageSource === "manual") {
     if (!manualImageFile) {
-      throw new Error("No se recibi\u00f3 la imagen manual");
+      throw new Error("No se recibió la imagen manual");
     }
 
     media = await uploadMediaFromFile(manualImageFile, {
@@ -332,7 +338,6 @@ export async function publishNewsToWordPress({
 
   const post = await createDraftPost({
     title,
-    excerpt,
     content: normalizedContent,
     featuredMediaId: media?.id || null,
   });

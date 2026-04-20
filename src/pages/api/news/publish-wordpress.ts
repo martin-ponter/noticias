@@ -34,8 +34,10 @@ function buildWordPressPayload(item: any, contentSource: string) {
 
     return {
       title: String(item?.aiWebTitle || item?.titleOriginal || "").trim(),
-      excerpt: String(item?.aiWebExcerpt || "").trim(),
-      content: normalizeWordPressContent(String(item?.aiWebContent || "").trim(), "ai"),
+      content: normalizeWordPressContent(
+        String(item?.aiWebContent || "").trim(),
+        "ai"
+      ),
     };
   }
 
@@ -46,12 +48,14 @@ function buildWordPressPayload(item: any, contentSource: string) {
 
     return {
       title: String(item?.titleOriginal || "").trim(),
-      excerpt: String(item?.summary || "").trim(),
-      content: normalizeWordPressContent(String(item?.contentText || "").trim(), "original"),
+      content: normalizeWordPressContent(
+        String(item?.contentText || "").trim(),
+        "original"
+      ),
     };
   }
 
-  throw new Error("contentSource no v\u00e1lido");
+  throw new Error("contentSource no válido");
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -81,7 +85,7 @@ export const POST: APIRoute = async ({ request }) => {
         manualImage instanceof File && Number(manualImage.size || 0) > 0;
 
       if (!isValidFile) {
-        return badRequest("Debes adjuntar una imagen manual v\u00e1lida");
+        return badRequest("Debes adjuntar una imagen manual válida");
       }
     }
 
@@ -101,7 +105,7 @@ export const POST: APIRoute = async ({ request }) => {
       const file = manualImage instanceof File ? manualImage : null;
 
       if (!file || Number(file.size || 0) <= 0) {
-        return badRequest("No se recibi\u00f3 una imagen manual v\u00e1lida");
+        return badRequest("No se recibió una imagen manual válida");
       }
 
       if (!ALLOWED_MANUAL_IMAGE_TYPES.includes(file.type)) {
@@ -146,8 +150,7 @@ export const POST: APIRoute = async ({ request }) => {
       },
     });
   } catch (error: any) {
-    const message =
-      error?.message || "No se pudo subir la noticia a WordPress";
+    const message = error?.message || "No se pudo subir la noticia a WordPress";
 
     if (approvedItem?.id) {
       try {
