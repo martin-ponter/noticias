@@ -5,7 +5,10 @@ import {
   getNewsById,
 } from "../../../lib/server/news-service.js";
 import { badRequest, json, serverError } from "../../../lib/server/response.js";
-import { publishNewsToWordPress } from "../../../lib/server/wordpress.js";
+import {
+  normalizeWordPressContent,
+  publishNewsToWordPress,
+} from "../../../lib/server/wordpress.js";
 
 export const prerender = false;
 
@@ -31,7 +34,7 @@ function buildWordPressPayload(item: any, contentSource: string) {
     return {
       title: String(item?.aiWebTitle || item?.titleOriginal || "").trim(),
       excerpt: String(item?.aiWebExcerpt || "").trim(),
-      content: String(item?.aiWebContent || "").trim(),
+      content: normalizeWordPressContent(String(item?.aiWebContent || "").trim(), "ai"),
     };
   }
 
@@ -43,7 +46,7 @@ function buildWordPressPayload(item: any, contentSource: string) {
     return {
       title: String(item?.titleOriginal || "").trim(),
       excerpt: String(item?.summary || "").trim(),
-      content: String(item?.contentText || "").trim(),
+      content: normalizeWordPressContent(String(item?.contentText || "").trim(), "original"),
     };
   }
 
@@ -118,6 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     const { post } = await publishNewsToWordPress({
       ...wpPayload,
+      contentSource,
       originalImageUrl: item?.featuredImageUrl || "",
       manualImageFile: manualImage instanceof File ? manualImage : null,
       imageSource,

@@ -8,6 +8,10 @@ const ALLOWED_MANUAL_IMAGE_TYPES = [
   "image/avif",
 ];
 const MAX_MANUAL_IMAGE_SIZE = 5 * 1024 * 1024;
+const PONTER_CLINIC_SLUG = "ponter-clinic";
+const PONTER_CLINIC_NAME = "Ponter Clinic";
+
+let cachedPonterClinicCategoryId = null;
 
 function normalizeBaseUrl(value) {
   const normalized = String(value || "").trim();
@@ -75,6 +79,124 @@ function detectContentType(filename, fallback = "image/jpeg") {
   if (lower.endsWith(".svg")) return "image/svg+xml";
   if (lower.endsWith(".avif")) return "image/avif";
   return fallback;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function normalizePlainTextToHtml(value) {
+  const normalized = String(value || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized) return "";
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
+function sanitizeAllowedHtml(html) {
+  let sanitized = String(html || "").replace(/\r\n/g, "\n").trim();
+
+  sanitized = sanitized.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  sanitized = sanitized.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
+  sanitized = sanitized.replace(/<\s*b\b[^>]*>/gi, "<strong>");
+  sanitized = sanitized.replace(/<\s*\/\s*b\s*>/gi, "</strong>");
+
+  sanitized = sanitized.replace(/<\s*p\b[^>]*>/gi, "<p>");
+  sanitized = sanitized.replace(/<\s*\/\s*p\s*>/gi, "</p>");
+  sanitized = sanitized.replace(/<\s*h2\b[^>]*>/gi, "<h2>");
+  sanitized = sanitized.replace(/<\s*\/\s*h2\s*>/gi, "</h2>");
+  sanitized = sanitized.replace(/<\s*strong\b[^>]*>/gi, "<strong>");
+  sanitized = sanitized.replace(/<\s*\/\s*strong\s*>/gi, "</strong>");
+  sanitized = sanitized.replace(/<\s*br\s*\/?\s*>/gi, "<br>");
+
+  sanitized = sanitized.replace(/<(?!\/?(p|h2|strong|br)\b)[^>]+>/gi, "");
+  sanitized = sanitized.replace(/<p>\s*(?:<br>\s*)*<\/p>/gi, "");
+  sanitized = sanitized.replace(/<h2>\s*<\/h2>/gi, "");
+
+  return sanitized.trim();
+}
+
+function stripHtml(value) {
+  return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function normalizeWordPressContent(content, contentSource = "ai") {
+  const normalizedSource = String(contentSource || "ai").trim().toLowerCase();
+  const rawContent = String(content || "").trim();
+
+  if (!rawContent) {
+    throw new Error("El contenido está vacío y no se puede subir a WordPress");
+  }
+
+  const hasHtmlTags = /<[^>]+>/.test(rawContent);
+  const baseHtml =
+    normalizedSource === "original" && !hasHtmlTags
+      ? normalizePlainTextToHtml(rawContent)
+      : rawContent;
+
+  const sanitized = sanitizeAllowedHtml(baseHtml);
+  const plainText = stripHtml(sanitized);
+
+  if (plainText.length < 80) {
+    throw new Error("El contenido es demasiado corto o no tiene estructura suficiente para WordPress");
+  }
+
+  if (normalizedSource === "ai" && !/<h2>/i.test(sanitized)) {
+    throw new Error("El contenido IA web debe incluir subtítulos H2 antes de subirlo a WordPress");
+  }
+
+  return sanitized;
+}
+
+async function findCategoryBySlug() {
+  const response = await fetchWordPress(
+    `/wp-json/wp/v2/categories?slug=${encodeURIComponent(PONTER_CLINIC_SLUG)}&per_page=100`
+  );
+  const categories = await response.json();
+  return Array.isArray(categories) ? categories[0] || null : null;
+}
+
+async function findCategoryByName() {
+  const response = await fetchWordPress(
+    `/wp-json/wp/v2/categories?search=${encodeURIComponent(PONTER_CLINIC_NAME)}&per_page=100`
+  );
+  const categories = await response.json();
+
+  if (!Array.isArray(categories)) {
+    return null;
+  }
+
+  return (
+    categories.find((category) => String(category?.name || "").trim() === PONTER_CLINIC_NAME) ||
+    null
+  );
+}
+
+export async function getPonterClinicCategoryId() {
+  if (cachedPonterClinicCategoryId) {
+    return cachedPonterClinicCategoryId;
+  }
+
+  const bySlug = await findCategoryBySlug();
+  if (bySlug?.id) {
+    cachedPonterClinicCategoryId = bySlug.id;
+    return cachedPonterClinicCategoryId;
+  }
+
+  const byName = await findCategoryByName();
+  if (byName?.id) {
+    cachedPonterClinicCategoryId = byName.id;
+    return cachedPonterClinicCategoryId;
+  }
+
+  throw new Error('No se encontró la categoría "Ponter Clinic" en WordPress');
 }
 
 async function uploadMediaBuffer(buffer, { filename, contentType, altText = "" }) {
@@ -155,6 +277,8 @@ export async function uploadMediaFromFile(file, options = {}) {
 }
 
 export async function createDraftPost(payload) {
+  const categoryId = await getPonterClinicCategoryId();
+
   const response = await fetchWordPress("/wp-json/wp/v2/posts", {
     method: "POST",
     headers: {
@@ -165,6 +289,7 @@ export async function createDraftPost(payload) {
       excerpt: payload.excerpt || "",
       content: payload.content,
       status: "draft",
+      categories: [categoryId],
       ...(payload.featuredMediaId ? { featured_media: payload.featuredMediaId } : {}),
     }),
   });
@@ -176,6 +301,7 @@ export async function publishNewsToWordPress({
   title,
   excerpt,
   content,
+  contentSource = "ai",
   originalImageUrl,
   manualImageFile,
   imageSource = "none",
@@ -202,15 +328,18 @@ export async function publishNewsToWordPress({
     });
   }
 
+  const normalizedContent = normalizeWordPressContent(content, contentSource);
+
   const post = await createDraftPost({
     title,
     excerpt,
-    content,
+    content: normalizedContent,
     featuredMediaId: media?.id || null,
   });
 
   return {
     post,
     media,
+    normalizedContent,
   };
 }

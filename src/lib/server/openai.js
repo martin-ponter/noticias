@@ -98,11 +98,12 @@ function requireNonEmptyString(value, fieldLabel, contextLabel) {
 
 function validateWebPayload(payload) {
   const data = assertPlainObject(payload, "web");
+  const contentValue = data.contentHtml ?? data.content;
 
   return {
     aiWebTitle: requireNonEmptyString(data.title, "title", "web"),
     aiWebExcerpt: requireNonEmptyString(data.excerpt, "excerpt", "web"),
-    aiWebContent: requireNonEmptyString(data.content, "content", "web"),
+    aiWebContent: requireNonEmptyString(contentValue, "contentHtml", "web"),
   };
 }
 
