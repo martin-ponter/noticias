@@ -286,7 +286,6 @@ export async function createDraftPost(payload) {
     },
     body: JSON.stringify({
       title: payload.title,
-      excerpt: payload.excerpt || "",
       content: payload.content,
       status: "draft",
       categories: [categoryId],
