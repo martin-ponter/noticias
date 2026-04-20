@@ -113,6 +113,8 @@ export default function ApprovePublishModal({
 
   const linkedinPost = normalizeValue(item?.aiLinkedinPost);
   const linkedinHashtags = normalizeValue(item?.aiLinkedinHashtags);
+  const alreadyUploadedToWordPress =
+    normalizeValue(item?.syncStatus || item?.status).toLowerCase() === "subida";
 
   const [mode, setMode] = useState(MODES.WEB);
   const [contentSource, setContentSource] = useState(hasAiContent ? "ai" : "original");
@@ -181,6 +183,7 @@ export default function ApprovePublishModal({
   const originalWarningRequired = contentSource === "original";
   const canSubmitWeb =
     !loading &&
+    !alreadyUploadedToWordPress &&
     contentSource &&
     (!originalWarningRequired || confirmOriginalContent) &&
     (imageSource !== "manual" || (manualImageFile && !manualImageError));
@@ -308,6 +311,12 @@ export default function ApprovePublishModal({
         </SectionCard>
 
         <SectionCard title="Contenido a subir">
+          {alreadyUploadedToWordPress ? (
+            <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              Esta noticia ya ha sido subida a WordPress.
+            </div>
+          ) : null}
+
           <div className="space-y-3">
             <label
               className={`block rounded-2xl border p-4 transition ${
@@ -321,7 +330,7 @@ export default function ApprovePublishModal({
                   type="radio"
                   name="content-source"
                   checked={contentSource === "ai"}
-                  disabled={!hasAiContent || loading}
+                  disabled={!hasAiContent || loading || alreadyUploadedToWordPress}
                   onChange={() => handleContentSourceChange("ai")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
@@ -354,7 +363,7 @@ export default function ApprovePublishModal({
                   type="radio"
                   name="content-source"
                   checked={contentSource === "original"}
-                  disabled={loading}
+                  disabled={loading || alreadyUploadedToWordPress}
                   onChange={() => handleContentSourceChange("original")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
@@ -382,7 +391,7 @@ export default function ApprovePublishModal({
                 <input
                   type="checkbox"
                   checked={confirmOriginalContent}
-                  disabled={loading}
+                  disabled={loading || alreadyUploadedToWordPress}
                   onChange={(event) => setConfirmOriginalContent(event.target.checked)}
                   className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-700 focus:ring-amber-500"
                 />
@@ -406,7 +415,7 @@ export default function ApprovePublishModal({
                   type="radio"
                   name="image-source"
                   checked={imageSource === "original"}
-                  disabled={!hasOriginalImage || loading}
+                  disabled={!hasOriginalImage || loading || alreadyUploadedToWordPress}
                   onChange={() => setImageSource("original")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
@@ -441,7 +450,7 @@ export default function ApprovePublishModal({
                   type="radio"
                   name="image-source"
                   checked={imageSource === "manual"}
-                  disabled={loading}
+                  disabled={loading || alreadyUploadedToWordPress}
                   onChange={() => setImageSource("manual")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
@@ -453,7 +462,7 @@ export default function ApprovePublishModal({
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                      disabled={loading}
+                      disabled={loading || alreadyUploadedToWordPress}
                       onChange={handleManualImageChange}
                       className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
                     />
@@ -482,7 +491,7 @@ export default function ApprovePublishModal({
                   type="radio"
                   name="image-source"
                   checked={imageSource === "none"}
-                  disabled={loading}
+                  disabled={loading || alreadyUploadedToWordPress}
                   onChange={() => setImageSource("none")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
@@ -686,7 +695,9 @@ export default function ApprovePublishModal({
           {mode === MODES.WEB ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
-                La noticia se creara en WordPress como borrador.
+                {alreadyUploadedToWordPress
+                  ? "Esta noticia ya fue enviada a WordPress. LinkedIn sigue disponible en la otra pestaña."
+                  : "La noticia se creara en WordPress como borrador."}
               </p>
 
               <div className="flex items-center gap-3">
@@ -705,7 +716,11 @@ export default function ApprovePublishModal({
                   disabled={!canSubmitWeb}
                   className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading ? "Subiendo..." : "Subir noticia"}
+                  {alreadyUploadedToWordPress
+                    ? "Ya subida en WordPress"
+                    : loading
+                      ? "Subiendo..."
+                      : "Subir noticia"}
                 </button>
               </div>
             </div>

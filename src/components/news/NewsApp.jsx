@@ -51,11 +51,6 @@ function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function isUploadedItem(item) {
-  const status = String(item?.syncStatus || item?.status || "").trim().toLowerCase();
-  return status === "subida";
-}
-
 function matchesSearch(item, query) {
   const q = normalizeText(query);
 
@@ -484,7 +479,7 @@ export default function NewsApp() {
   }
 
   function handleApprove() {
-    if (!selectedItem || actionLoading || publishLoading || isUploadedItem(selectedItem)) {
+    if (!selectedItem || actionLoading || publishLoading) {
       return;
     }
     setPublishError("");
