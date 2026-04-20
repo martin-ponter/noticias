@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { BITRIX_APP_CONFIG } from "../../config/bitrixConfig.js";
 import {
-  buildLinkedinSourceContext,
   DEFAULT_LINKEDIN_PROMPT,
   DEFAULT_WEB_PROMPT,
   buildSourceContext,
@@ -20,13 +19,8 @@ function getOpenAIModel() {
   return String(process.env.OPENAI_MODEL || "").trim() || DEFAULT_OPENAI_MODEL;
 }
 
-function buildOpenAIInput(prompt, item, options = {}) {
-  const contextBuilder =
-    typeof options.contextBuilder === "function"
-      ? options.contextBuilder
-      : buildSourceContext;
-
-  const context = contextBuilder(item);
+function buildOpenAIInput(prompt, item) {
+  const context = buildSourceContext(item);
 
   return [
     prompt,
@@ -71,7 +65,7 @@ function parseJsonResponse(rawText) {
     try {
       return JSON.parse(candidate);
     } catch {
-      // probar siguiente candidato
+      // seguir
     }
   }
 
@@ -122,165 +116,21 @@ function validateLinkedinPayload(payload) {
   };
 }
 
-function pushCandidate(bucket, value) {
-  const text = String(value || "").trim();
-  if (text && !bucket.includes(text)) {
-    bucket.push(text);
-  }
-}
-
-function collectTextFromNode(node, bucket) {
-  if (!node) return;
-
-  if (typeof node === "string") {
-    pushCandidate(bucket, node);
-    return;
-  }
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      collectTextFromNode(item, bucket);
-    }
-    return;
-  }
-
-  if (typeof node !== "object") {
-    return;
-  }
-
-  // Casos comunes del SDK / Responses API
-  if (typeof node.output_text === "string") {
-    pushCandidate(bucket, node.output_text);
-  }
-
-  if (typeof node.text === "string") {
-    pushCandidate(bucket, node.text);
-  }
-
-  if (typeof node.content === "string") {
-    pushCandidate(bucket, node.content);
-  }
-
-  // Explorar estructuras anidadas habituales
-  if (Array.isArray(node.output)) {
-    collectTextFromNode(node.output, bucket);
-  }
-
-  if (Array.isArray(node.content)) {
-    collectTextFromNode(node.content, bucket);
-  }
-
-  if (Array.isArray(node.contents)) {
-    collectTextFromNode(node.contents, bucket);
-  }
-
-  if (node.type === "output_text" && typeof node.text === "string") {
-    pushCandidate(bucket, node.text);
-  }
-
-  if (node.type === "text" && typeof node.text === "string") {
-    pushCandidate(bucket, node.text);
-  }
-
-  if (node.type === "message" && Array.isArray(node.content)) {
-    collectTextFromNode(node.content, bucket);
-  }
-}
-
-function extractResponseText(response) {
-  const candidates = [];
-
-  // helper oficial del SDK
-  pushCandidate(candidates, response?.output_text);
-
-  // fallback robusto recorriendo output
-  collectTextFromNode(response?.output, candidates);
-
-  return candidates.join("\n\n").trim();
-}
-
-function summarizeResponse(response) {
-  const output = Array.isArray(response?.output) ? response.output : [];
-
-  return {
-    id: response?.id || null,
-    model: response?.model || null,
-    status: response?.status || null,
-    outputCount: output.length,
-    outputTypes: output.map((item) => item?.type || "unknown"),
-    incompleteDetails: response?.incomplete_details || null,
-    usage: response?.usage
-      ? {
-          input_tokens: response.usage.input_tokens ?? null,
-          output_tokens: response.usage.output_tokens ?? null,
-          total_tokens: response.usage.total_tokens ?? null,
-        }
-      : null,
-  };
-}
-
-function isRetriableExtractionError(error) {
-  const message = String(error?.message || "").toLowerCase();
-
-  return (
-    message.includes("no devolvió texto") ||
-    message.includes("respuesta vacía") ||
-    message.includes("no se pudo parsear")
-  );
-}
-
-async function requestOpenAIJson(prompt, item, options = {}) {
+async function requestOpenAIJson(prompt, item) {
   const client = getOpenAIClient();
 
-  const requestPayload = {
+  const response = await client.responses.create({
     model: getOpenAIModel(),
-    input: buildOpenAIInput(prompt, item, options),
-  };
+    input: buildOpenAIInput(prompt, item),
+  });
 
-  if (Number(options.maxOutputTokens) > 0) {
-    requestPayload.max_output_tokens = Number(options.maxOutputTokens);
+  const rawText = String(response.output_text || "").trim();
+
+  if (!rawText) {
+    throw new Error("OpenAI no devolvió texto en la respuesta");
   }
 
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    try {
-      const response = await client.responses.create(requestPayload);
-      const rawText = extractResponseText(response);
-
-      if (!rawText) {
-        console.warn("[openai] respuesta sin texto utilizable", {
-          attempt,
-          summary: summarizeResponse(response),
-        });
-        throw new Error("OpenAI no devolvió texto utilizable en la respuesta");
-      }
-
-      try {
-        return parseJsonResponse(rawText);
-      } catch (parseError) {
-        console.warn("[openai] no se pudo parsear JSON", {
-          attempt,
-          summary: summarizeResponse(response),
-          rawTextPreview: rawText.slice(0, 1200),
-        });
-        throw parseError;
-      }
-    } catch (error) {
-      lastError = error;
-
-      if (attempt >= 2 || !isRetriableExtractionError(error)) {
-        break;
-      }
-
-      console.warn("[openai] reintentando petición por respuesta incompleta", {
-        attempt,
-        reason: error?.message || "unknown",
-      });
-    }
-  }
-
-  throw lastError || new Error("No se pudo obtener una respuesta válida de OpenAI");
+  return parseJsonResponse(rawText);
 }
 
 async function generateWebContent(item, promptOverride = "") {
@@ -291,10 +141,7 @@ async function generateWebContent(item, promptOverride = "") {
 
 async function generateLinkedinContent(item, promptOverride = "") {
   const prompt = String(promptOverride || "").trim() || DEFAULT_LINKEDIN_PROMPT;
-  const payload = await requestOpenAIJson(prompt, item, {
-    contextBuilder: buildLinkedinSourceContext,
-    maxOutputTokens: 500,
-  });
+  const payload = await requestOpenAIJson(prompt, item);
   return validateLinkedinPayload(payload);
 }
 
