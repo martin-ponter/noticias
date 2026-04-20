@@ -7,7 +7,7 @@ import {
 } from "../news/aiPromptTemplates.js";
 import { requireEnv } from "./api.js";
 
-const DEFAULT_OPENAI_MODEL = "gpt-5";
+const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
 
 function getOpenAIClient() {
   return new OpenAI({
