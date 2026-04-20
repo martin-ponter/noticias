@@ -65,11 +65,20 @@ function PreviewImage({ src, alt }) {
   );
 }
 
-function CopyButton({ copied, disabled = false, onClick, label = "Copiar", copiedLabel = "Copiado" }) {
+function CopyButton({
+  copied,
+  disabled = false,
+  onClick,
+  label = "Copiar",
+  copiedLabel = "Copiado",
+}) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
       disabled={disabled}
       className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
     >
@@ -94,6 +103,50 @@ function SectionCard({ title, children, tone = "default" }) {
       <div className="mt-4">{children}</div>
     </section>
   );
+}
+
+async function copyTextRobust(text) {
+  const value = normalizeValue(text);
+  if (!value) return false;
+
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.clipboard &&
+    typeof navigator.clipboard.writeText === "function" &&
+    typeof window !== "undefined" &&
+    window.isSecureContext
+  ) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // seguimos con fallback
+    }
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.setAttribute("aria-hidden", "true");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    textarea.style.left = "-1000px";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+
+    return Boolean(copied);
+  } catch {
+    return false;
+  }
 }
 
 export default function ApprovePublishModal({
@@ -123,6 +176,7 @@ export default function ApprovePublishModal({
   const [manualImagePreview, setManualImagePreview] = useState("");
   const [manualImageError, setManualImageError] = useState("");
   const [confirmOriginalContent, setConfirmOriginalContent] = useState(false);
+  const [copyError, setCopyError] = useState("");
   const [copyState, setCopyState] = useState({
     post: false,
     hashtags: false,
@@ -130,7 +184,7 @@ export default function ApprovePublishModal({
     prompt: false,
   });
 
-  useEffect(() => {
+    useEffect(() => {
     if (!open) return;
 
     setMode(alreadyUploadedToWordPress ? MODES.LINKEDIN : MODES.WEB);
@@ -140,6 +194,7 @@ export default function ApprovePublishModal({
     setManualImagePreview("");
     setManualImageError("");
     setConfirmOriginalContent(false);
+    setCopyError("");
     setCopyState({
       post: false,
       hashtags: false,
@@ -158,7 +213,10 @@ export default function ApprovePublishModal({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [open, loading, onClose]);
 
   useEffect(() => {
@@ -170,7 +228,9 @@ export default function ApprovePublishModal({
     const nextPreview = URL.createObjectURL(manualImageFile);
     setManualImagePreview(nextPreview);
 
-    return () => URL.revokeObjectURL(nextPreview);
+    return () => {
+      URL.revokeObjectURL(nextPreview);
+    };
   }, [manualImageFile]);
 
   if (!open) return null;
@@ -243,24 +303,31 @@ export default function ApprovePublishModal({
   }
 
   async function copyToClipboard(key, value) {
-    if (!normalizeValue(value)) return;
+    const normalized = normalizeValue(value);
+    if (!normalized) return;
 
-    try {
-      await navigator.clipboard.writeText(value);
+    setCopyError("");
+
+    const ok = await copyTextRobust(normalized);
+
+    if (!ok) {
+      setCopyError(
+        "No se pudo copiar automáticamente en este entorno. Selecciona el texto y cópialo manualmente."
+      );
+      return;
+    }
+
+    setCopyState((prev) => ({
+      ...prev,
+      [key]: true,
+    }));
+
+    window.setTimeout(() => {
       setCopyState((prev) => ({
         ...prev,
-        [key]: true,
+        [key]: false,
       }));
-
-      window.setTimeout(() => {
-        setCopyState((prev) => ({
-          ...prev,
-          [key]: false,
-        }));
-      }, 1800);
-    } catch (copyError) {
-      console.warn("No se pudo copiar al portapapeles", copyError);
-    }
+    }, 1800);
   }
 
   function renderModeTabs() {
@@ -629,6 +696,12 @@ export default function ApprovePublishModal({
             </a>
           </div>
         </SectionCard>
+
+        {copyError ? (
+          <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            {copyError}
+          </section>
+        ) : null}
       </div>
     );
   }
