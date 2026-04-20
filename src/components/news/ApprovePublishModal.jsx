@@ -18,8 +18,19 @@ function normalizeValue(value) {
   return String(value || "").trim();
 }
 
+function previewText(value, maxWords = 12) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "Sin contenido disponible";
+
+  const words = text.split(" ");
+  if (words.length <= maxWords) return text;
+
+  return `${words.slice(0, maxWords).join(" ")}...`;
+}
+
 function buildWebGeminiPrompt(item) {
-  const baseTitle = normalizeValue(item?.aiWebTitle) || normalizeValue(item?.titleOriginal);
+  const baseTitle =
+    normalizeValue(item?.aiWebTitle) || normalizeValue(item?.titleOriginal);
 
   return [
     "Genera una imagen profesional y corporativa para ilustrar una noticia editorial.",
@@ -170,8 +181,12 @@ export default function ApprovePublishModal({
   const alreadyUploadedToWordPress = isUploadedToWordPress(item);
 
   const [mode, setMode] = useState(MODES.WEB);
-  const [contentSource, setContentSource] = useState(hasAiContent ? "ai" : "original");
-  const [imageSource, setImageSource] = useState(hasOriginalImage ? "original" : "none");
+  const [contentSource, setContentSource] = useState(
+    hasAiContent ? "ai" : "original"
+  );
+  const [imageSource, setImageSource] = useState(
+    hasOriginalImage ? "original" : "none"
+  );
   const [manualImageFile, setManualImageFile] = useState(null);
   const [manualImagePreview, setManualImagePreview] = useState("");
   const [manualImageError, setManualImageError] = useState("");
@@ -184,7 +199,7 @@ export default function ApprovePublishModal({
     prompt: false,
   });
 
-    useEffect(() => {
+  useEffect(() => {
     if (!open) return;
 
     setMode(alreadyUploadedToWordPress ? MODES.LINKEDIN : MODES.WEB);
@@ -237,7 +252,17 @@ export default function ApprovePublishModal({
 
   const itemTitle = normalizeValue(item?.titleOriginal) || "sin titulo";
   const aiTitle = normalizeValue(item?.aiWebTitle) || "Sin titulo IA web";
-  const aiExcerpt = normalizeValue(item?.aiWebExcerpt) || "Sin extracto IA web";
+  const aiExcerpt =
+    normalizeValue(item?.aiWebExcerpt) || "Sin extracto IA web";
+
+  const aiTitlePreview = previewText(item?.aiWebTitle || item?.titleOriginal, 8);
+  const aiExcerptPreview = previewText(item?.aiWebExcerpt, 10);
+  const aiContentPreview = previewText(item?.aiWebContent, 14);
+
+  const originalTitlePreview = previewText(item?.titleOriginal, 8);
+  const originalExcerptPreview = previewText(item?.summary, 10);
+  const originalContentPreview = previewText(item?.contentText, 14);
+
   const webGeminiPrompt = buildWebGeminiPrompt(item);
   const linkedinGeminiPrompt = buildLinkedinGeminiPrompt(item);
   const originalWarningRequired = contentSource === "original";
@@ -247,9 +272,12 @@ export default function ApprovePublishModal({
     contentSource &&
     (!originalWarningRequired || confirmOriginalContent) &&
     (imageSource !== "manual" || (manualImageFile && !manualImageError));
+
   const hasLinkedinPost = Boolean(linkedinPost);
   const hasLinkedinHashtags = Boolean(linkedinHashtags);
-  const completeLinkedinText = [linkedinPost, linkedinHashtags].filter(Boolean).join("\n\n");
+  const completeLinkedinText = [linkedinPost, linkedinHashtags]
+    .filter(Boolean)
+    .join("\n\n");
 
   function handleBackdropClick(event) {
     if (event.target !== event.currentTarget || loading) return;
@@ -267,7 +295,9 @@ export default function ApprovePublishModal({
 
     if (!ALLOWED_MANUAL_IMAGE_TYPES.includes(file.type)) {
       setManualImageFile(null);
-      setManualImageError("La imagen manual debe ser JPG, PNG, WEBP, GIF o AVIF");
+      setManualImageError(
+        "La imagen manual debe ser JPG, PNG, WEBP, GIF o AVIF"
+      );
       return;
     }
 
@@ -299,7 +329,11 @@ export default function ApprovePublishModal({
   }
 
   function openLinkedin() {
-    window.open("https://www.linkedin.com/feed/", "_blank", "noopener,noreferrer");
+    window.open(
+      "https://www.linkedin.com/feed/",
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   async function copyToClipboard(key, value) {
@@ -401,17 +435,29 @@ export default function ApprovePublishModal({
                   onChange={() => handleContentSourceChange("ai")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-slate-900">
                     Usar contenido IA web
                   </div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Titulo: `aiWebTitle` con fallback a `titleOriginal`, extracto desde
-                    `aiWebExcerpt` y contenido desde `aiWebContent`.
+
+                  <div className="mt-2 space-y-1 text-sm text-slate-600">
+                    <div>
+                      <span className="font-medium text-slate-700">Título:</span>{" "}
+                      {aiTitlePreview}
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Extracto:</span>{" "}
+                      {aiExcerptPreview}
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Contenido:</span>{" "}
+                      {aiContentPreview}
+                    </div>
                   </div>
+
                   {!hasAiContent ? (
                     <div className="mt-2 text-sm text-amber-700">
-                      Esta opcion no esta disponible porque falta `aiWebContent`.
+                      Esta opcion no esta disponible porque falta aiWebContent.
                     </div>
                   ) : null}
                 </div>
@@ -434,13 +480,24 @@ export default function ApprovePublishModal({
                   onChange={() => handleContentSourceChange("original")}
                   className="mt-1 h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-slate-900">
                     Usar contenido original/editado
                   </div>
-                  <div className="mt-1 text-sm text-slate-600">
-                    Titulo desde `titleOriginal`, extracto desde `summary` y contenido
-                    desde `contentText`.
+
+                  <div className="mt-2 space-y-1 text-sm text-slate-600">
+                    <div>
+                      <span className="font-medium text-slate-700">Título:</span>{" "}
+                      {originalTitlePreview}
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Extracto:</span>{" "}
+                      {originalExcerptPreview}
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">Contenido:</span>{" "}
+                      {originalContentPreview}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -457,7 +514,9 @@ export default function ApprovePublishModal({
                   type="checkbox"
                   checked={confirmOriginalContent}
                   disabled={loading || alreadyUploadedToWordPress}
-                  onChange={(event) => setConfirmOriginalContent(event.target.checked)}
+                  onChange={(event) =>
+                    setConfirmOriginalContent(event.target.checked)
+                  }
                   className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-700 focus:ring-amber-500"
                 />
                 <span>Confirmo que quiero subir el contenido original.</span>
@@ -538,7 +597,10 @@ export default function ApprovePublishModal({
                     </div>
                   ) : null}
                   <div className="mt-3">
-                    <PreviewImage src={manualImagePreview} alt="Vista previa manual" />
+                    <PreviewImage
+                      src={manualImagePreview}
+                      alt="Vista previa manual"
+                    />
                   </div>
                 </div>
               </div>
@@ -672,7 +734,8 @@ export default function ApprovePublishModal({
 
         <SectionCard title="Prompt Gemini" tone="subtle">
           <p className="text-sm text-slate-600">
-            Si prefieres una imagen nueva para LinkedIn, puedes generar una con Gemini usando este prompt:
+            Si prefieres una imagen nueva para LinkedIn, puedes generar una con
+            Gemini usando este prompt:
           </p>
           <textarea
             readOnly
@@ -719,7 +782,8 @@ export default function ApprovePublishModal({
                 Aprobar salida editorial
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Decide si quieres preparar esta noticia para la web o para LinkedIn.
+                Decide si quieres preparar esta noticia para la web o para
+                LinkedIn.
               </p>
               {renderModeTabs()}
             </div>
@@ -741,7 +805,9 @@ export default function ApprovePublishModal({
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Noticia seleccionada
             </div>
-            <p className="mt-2 text-base font-medium text-slate-900">{itemTitle}</p>
+            <p className="mt-2 text-base font-medium text-slate-900">
+              {itemTitle}
+            </p>
           </div>
 
           {mode === MODES.WEB ? renderWebTab() : renderLinkedinTab()}
@@ -789,7 +855,8 @@ export default function ApprovePublishModal({
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-500">
-                LinkedIn se publica manualmente. Usa los botones de copiado y abre LinkedIn cuando quieras.
+                LinkedIn se publica manualmente. Usa los botones de copiado y
+                abre LinkedIn cuando quieras.
               </p>
 
               <div className="flex items-center gap-3">
